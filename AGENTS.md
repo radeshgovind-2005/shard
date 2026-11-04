@@ -1,4 +1,4 @@
-/## Project Overview
+## Project Overview
 
 SHARD is ComPar 26/27 Project 1 (NOVA FCT): large-scale analytics over NYC TLC Yellow Taxi trips (2009–2026, Parquet) on Apache Spark, written in **Kotlin against Spark's JVM (Scala) API**. That is a deliberate choice: Spark runs on JVM bytecode, so Kotlin uses the Scala API directly.
 
@@ -17,14 +17,24 @@ The Makefile is the single entry point; hooks and CI call the same targets.
 - `make lint` — check formatting (Spotless + ktlint)
 - `make format` — apply formatting
 - `make check` — lint + build + test (pre-push and CI)
-- `make run` — run the application
+- `make jar` — fat jar for `spark-submit` (`build/libs/shard-all.jar`: our code + Kotlin stdlib, no Spark)
+- `make run ARGS="..."` — run locally (`local[*]`, Spark on the classpath from Gradle)
+- `make data [YEARS=2025]` — download trips + zone lookup into `data/` (`YEARS=2011-2026`, `YEARS="2024 2025"`, `YEARS=2025-01`)
+- `make data-sample` — one month (2025-01) for smoke tests
+- `make data-size [YEARS=...]` — download size vs free disk, without downloading
+- `make data-clean YEARS=...` — delete downloaded files to free disk (`YEARS=all` for everything; keeps `MANIFEST.tsv`)
 - `make clean` — remove build outputs
 
 Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-TODO, once the pipeline exists: packages, entry point, and the data flow (load → M1 → M2 / M3 / O*), with the files that implement each operation.
+Current state: build only. `src/main/kotlin/Main.kt` (`com.kognito.MainKt`, the application and jar entry point) is still the Hello Kotlin template.
+
+- Build: `build.gradle.kts` (Spark 4.3.0 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
+- Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
+
+TODO, once the pipeline exists: packages, and the data flow (load → M1 → M2 / M3 / O*) with the files that implement each operation.
 
 ## Code Conventions
 
@@ -35,11 +45,12 @@ TODO, once the pipeline exists: packages, entry point, and the data flow (load �
   - Enforce the schema once at load; keep column names as constants; prefer built-in `functions.*` over UDFs.
   - Keep performance decisions (`persist`/`unpersist`, `broadcast()`, repartitioning) visible in the top-level pipeline function.
 - **Kotlin ↔ Scala API:** use `Column` methods (`.gt()`, `.and()`, `.equalTo()`), since Scala operators aren't available. Avoid `Dataset.transform` (it needs a Scala `Function1`). Convert collections explicitly when an API wants a Scala `Seq`.
-- **Inputs:** data paths and dataset scale come from CLI arguments, never hard-coded. Any non-default `spark.*` setting is documented in README → Configuration.
+- **Inputs:** data paths and dataset scale come from CLI arguments, never hard-coded. The input schema drifts across years (2009–2010 have no zone IDs; types and column names change later): see README → Dataset. Any non-default `spark.*` setting is documented in README → Configuration.
 
 ## Testing and Verification
 
 - `make check` = lint + build + test. CI and the `pre-push` hook run the same thing.
+- `SparkSessionTest` runs a local Spark job with a shuffle. It guards the build setup (Spark on the classpath, Java 21, module flags).
 - TODO, once the pipeline exists: unit tests per operation, and a correctness check on a one-month sample (row counts plus an `except`-diff in both directions). Every optimisation must keep results identical.
 
 ## Workflow
@@ -56,6 +67,7 @@ Never commit dataset files (`*.parquet`, `data/`), and never force-push or bypas
 ## Boundaries
 
 - **Never commit** dataset files (`*.parquet`, `data/`), Spark event logs, or secrets (`.env*`).
+- **`data/` is read-only input.** The pipeline never writes there; outputs go to `output/` (or a CLI-given path). That's what makes `make data-clean` + re-download safe.
 - **No speculative optimisation.** Only change performance-related code for a hypothesis logged in `experiments/LOG.md` with a measured symptom, as the assignment requires.
 - **Never change what an operation computes** as a "performance fix". Verify that results are identical.
 - **Every number** in the report or a PR traces to a run-id in `experiments/LOG.md`. Never estimate or round in your favour.
@@ -68,4 +80,5 @@ Never commit dataset files (`*.parquet`, `data/`), and never force-push or bypas
 - `docs/lectures/index.md`: lecture knowledge base (start here; it has a keyword lookup). For numbers and formulas: `docs/lectures/formulas-cheatsheet.md`
 - `docs/report/template.tex`: report template (acmart). Build with `latexmk -pdf -cd docs/report/template.tex`
 - `experiments/LOG.md`: environments, runs, hypotheses, optimisations
+- `docs/lab-inputs.md`: what is still needed from the labs and the course (Docker Spark, Lab 3 profiler, DI cluster, submission)
 - `.claude/skills/kotlin-stepdown/`: code style, plus `references/spark.md` for Spark specifics

@@ -14,17 +14,18 @@
 |---|---|
 | `src/main/kotlin/` | Pipeline code (`com.kognito`) |
 | `src/test/kotlin/` | Tests (`make test`) |
-| `data/` | Local dataset only: gitignored, blocked by `pre-commit` |
+| `data/` | Local dataset only (`make data`): gitignored, blocked by `pre-commit` |
 | `experiments/LOG.md` | Environments, runs, hypotheses, optimisations: the source of every reported number |
 | `experiments/runs/<run-id>/` | Raw stage JSON and plans (event logs gitignored) |
 | `experiments/analysis/` | CSVs for report charts |
 | `docs/Project_Description.md` | Assignment spec |
+| `docs/lab-inputs.md` | Still needed from labs/course: Docker Spark, Lab 3 profiler, DI cluster |
 | `docs/lectures/` | Lecture knowledge base (`index.md` first) |
 | `docs/report/` | LaTeX report (`template.tex`) |
 | `.claude/agents/`, `commands/`, `skills/` | Agents, slash commands, the `kotlin-stepdown` skill |
 | `.claude/templates/` | Templates for new agents, commands and rules (not loaded) |
 | `.github/` | CI workflow, `main` ruleset, PR template |
-| `.husky/`, `Makefile`, `scripts/` | Git hooks, command entry point, `gh-setup.sh` |
+| `.husky/`, `Makefile`, `scripts/` | Git hooks, command entry point, `gh-setup.sh`, `download-data.sh` |
 
 ## Subagents & Skills
 
@@ -52,5 +53,7 @@ Performance loop (profile → hypothesise → optimise → measure → repeat), 
 - **The PR title becomes the commit on `main`** (squash-merge, empty body), so it must pass commitlint. CI lints it.
 - **Apply the ruleset only after CI is on `main`.** `make gh-setup` refuses otherwise; without CI, every PR would wait forever on required checks.
 - **AQE rewrites plans at runtime.** The `explain()` output before execution says `isFinalPlan=false`, so diagnose from the final plan (after the action, or from the Spark UI's SQL tab).
-- **Java vs Spark:** the toolchain is JDK 24, but Spark 4 officially supports 17/21. If Spark fails at runtime with module-access errors (`IllegalAccessError`, `InaccessibleObjectException`), add the needed `--add-opens` JVM args or drop the toolchain to 21.
+- **Java vs Spark:** the toolchain is JDK 21 (Spark 4.3 supports 17/21/25, not 24; a cluster on 21 can't load newer bytecode). Plain JVM launches (`make run`, tests) need Spark's `--add-opens` flags: they're in `sparkJvmArgs` in `build.gradle.kts`, and `spark-submit` adds them itself.
+- **Spark is not in the fat jar.** It's a `spark` configuration (compile + run + test only), because the cluster provides it. `sparkVersion` in `gradle.properties` must match the cluster's Spark.
+- **The dataset schema drifts.** 2009–2010 have lat/lon instead of `PULocationID`/`DOLocationID`; later years change int widths and column-name case. See README → Dataset before writing M1.
 - **Kotlin ↔ Scala:** no Scala operator syntax on `Column`, and no implicit `Function1`/`Seq` conversion. See `.claude/skills/kotlin-stepdown/references/spark.md`.

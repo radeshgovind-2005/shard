@@ -6,10 +6,10 @@ Single source of truth for every measurement in the report. Agents append here; 
 
 | Field | local | Docker Spark | DI cluster |
 |---|---|---|---|
-| Spark version | | | |
-| Hardware / topology (workers × cores × memory) | | | |
-| Non-default `spark.*` conf | | | |
-| Dataset (years, files, size on disk) | | | |
+| Spark version | 4.3.0 (Scala 2.13), Temurin JDK 21, `local[*]` | | |
+| Hardware / topology (workers × cores × memory) | 1 × Apple M5, 10 cores, 24 GB RAM (macOS) | | |
+| Non-default `spark.*` conf | none | | |
+| Dataset (years, files, size on disk) | not downloaded yet (`make data`; versions in `data/MANIFEST.tsv`) | | |
 
 ## Runs
 
