@@ -31,7 +31,7 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 Current state: build only. `src/main/kotlin/Main.kt` (`com.kognito.MainKt`, the application and jar entry point) is still the Hello Kotlin template.
 
-- Build: `build.gradle.kts` (Spark 4.3.0 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
+- Build: `build.gradle.kts` (Spark 4.2.1 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
 - Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
 
 TODO, once the pipeline exists: packages, and the data flow (load → M1 → M2 / M3 / O*) with the files that implement each operation.

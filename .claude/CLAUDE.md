@@ -53,7 +53,7 @@ Performance loop (profile → hypothesise → optimise → measure → repeat), 
 - **The PR title becomes the commit on `main`** (squash-merge, empty body), so it must pass commitlint. CI lints it.
 - **Apply the ruleset only after CI is on `main`.** `make gh-setup` refuses otherwise; without CI, every PR would wait forever on required checks.
 - **AQE rewrites plans at runtime.** The `explain()` output before execution says `isFinalPlan=false`, so diagnose from the final plan (after the action, or from the Spark UI's SQL tab).
-- **Java vs Spark:** the toolchain is JDK 21 (Spark 4.3 supports 17/21/25, not 24; a cluster on 21 can't load newer bytecode). Plain JVM launches (`make run`, tests) need Spark's `--add-opens` flags: they're in `sparkJvmArgs` in `build.gradle.kts`, and `spark-submit` adds them itself.
+- **Java vs Spark:** the toolchain is JDK 21 (Spark 4.2 supports 17/21/25, not 24; a cluster on 21 can't load newer bytecode). Plain JVM launches (`make run`, tests) need Spark's `--add-opens` flags: they're in `sparkJvmArgs` in `build.gradle.kts`, and `spark-submit` adds them itself.
 - **Spark is not in the fat jar.** It's a `spark` configuration (compile + run + test only), because the cluster provides it. `sparkVersion` in `gradle.properties` must match the cluster's Spark.
 - **The dataset schema drifts.** 2009–2010 have lat/lon instead of `PULocationID`/`DOLocationID`; later years change int widths and column-name case. See README → Dataset before writing M1.
 - **Kotlin ↔ Scala:** no Scala operator syntax on `Column`, and no implicit `Function1`/`Seq` conversion. See `.claude/skills/kotlin-stepdown/references/spark.md`.
