@@ -17,11 +17,12 @@ Spec: [`docs/Project_Description.md`](docs/Project_Description.md).
 
 ## Requirements
 
-- **JDK 24.** Gradle provisions it automatically through the toolchain resolver.
+- **JDK 21.** Gradle provisions it automatically through the toolchain resolver. Spark 4.3 supports Java 17/21/25 (not 24), and 21 matches what clusters typically run.
+- **Apache Spark 4.3.0 (Scala 2.13).** No local install needed: Gradle fetches it for `make run` and the tests. `spark-submit` is only needed on a cluster, whose Spark version must match `sparkVersion` in `gradle.properties`.
 - **Node.js** (LTS). Used only for the Git hooks (Husky + commitlint).
-- **GNU Make**
-- **Apache Spark:** TODO, version and Scala binary version (2.13) once the dependency is added
-- **Cluster:** TODO, Docker Spark environment and DI cluster details
+- **GNU Make** and **curl**
+- **Disk:** about 0.8 GiB for one year of data, 30.2 GiB for all of 2009–2026 (plus room for Spark spill and outputs)
+- **Cluster:** Docker Spark environment and DI cluster details are pending. See [`docs/lab-inputs.md`](docs/lab-inputs.md).
 
 ## Installation
 
@@ -32,27 +33,84 @@ make setup   # installs Git hooks (commit message + lint checks)
 make build
 ```
 
-**Dataset.** Don't commit it. It goes in `data/` (gitignored, and the pre-commit hook blocks it).
-- Source: [NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page): monthly `yellow_tripdata_YYYY-MM.parquet` files, plus `taxi_zone_lookup.csv`
-- TODO: exact download URLs, the years used, the download date (dataset version), and a download script
+### Dataset
+
+[NYC TLC Trip Record Data](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page), downloaded by `scripts/download-data.sh` from the TLC's CDN:
+- Trips: `https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_YYYY-MM.parquet` (one file per month)
+- Zones: `https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv`
+
+```sh
+make data-size                 # size of the selection vs free disk, downloads nothing
+make data                      # default selection: all of 2025 (12 files, 791.5 MiB)
+make data YEARS=2011-2026      # a range; also YEARS="2024 2025" or a single month YEARS=2025-01
+make data-sample               # one month (2025-01) for smoke tests
+make data-clean YEARS=2009-2010   # delete files to free disk (YEARS=all for everything)
+```
+
+The script skips files already present (re-running resumes an interrupted download), skips months the TLC hasn't published yet, and refuses to start if the selection doesn't fit on disk with 2 GiB headroom.
+
+**The input is read-only.** The pipeline only reads `data/` and writes its results to `output/`, so downloaded files can be deleted (`make data-clean`) and re-downloaded at will. `data-clean` requires an explicit `YEARS` and keeps `MANIFEST.tsv`, the download history that earlier runs refer to. Don't delete files during an experiment: before/after runs must read exactly the same input, and a re-download may differ if the TLC republished the file (compare checksums in `MANIFEST.tsv`).
+
+Layout:
+
+```
+data/                          # gitignored; the pre-commit hook also blocks it
+├── taxi_zone_lookup.csv
+├── trips/yellow_tripdata_YYYY-MM.parquet
+└── MANIFEST.tsv               # per file: bytes, sha256, UTC download time, URL
+```
+
+**Dataset version.** The TLC republishes files from time to time, so `MANIFEST.tsv` is the version record: report the download dates and checksums of the files used. Years used in the experiments: TODO, once chosen.
+
+**The schema changes across years.** Checked on 2009-01, 2010-06, 2011-01, 2015-01, 2024-01 and 2026-01:
+- **2009–2010 have no `PULocationID`/`DOLocationID`.** They store raw pickup/dropoff longitude/latitude, with different column names (2009: `Trip_Pickup_DateTime`, `Fare_Amt`, `Start_Lon`…; 2010: `pickup_datetime`, `pickup_longitude`…) and timestamps stored as strings. The zone-based operations (M2, M3, O1–O4) can't use them without a geospatial lookup.
+- **2011 onwards** has the TLC schema used by the spec, but the files drift: `PULocationID`, `DOLocationID` and `VendorID` are `int64` in the 2011 and 2015 files and `int32` in 2024 and 2026; `airport_fee` (2015) becomes `Airport_fee` (2024); `cbd_congestion_fee` is in 2026-01 but not in 2024-01. M1 has to enforce one schema across files.
+
+The dry run sends one HEAD request per missing month. During setup, after about 250 requests in a few minutes, the CDN started answering 403. If downloads fail with 403, wait a few minutes and re-run.
 
 ## Quick Start
 
-TODO, once the pipeline runs: the shortest path from a fresh clone to one result, e.g. a smoke test on one month in `local[*]` mode.
+```sh
+make setup
+make data-sample   # zone lookup + one month (2025-01)
+make check         # lint, build, tests (includes a local Spark smoke test)
+make run           # currently the Hello Kotlin template; becomes the pipeline entry point
+```
 
 ## Usage
 
-TODO. The assignment requires all of the following for reproducibility:
-- CLI arguments: input path(s), dataset scale (one year / all years / fraction for smoke tests), output path
-- The **exact `spark-submit` command** for each environment (local, Docker Spark, DI cluster)
+**Local** (`local[*]`, Spark from Gradle):
+
+```sh
+make run ARGS="<pipeline arguments>"
+```
+
+**Cluster** (Docker Spark, DI cluster): build the fat jar (our code + Kotlin stdlib; Spark is provided by the cluster), then submit it:
+
+```sh
+make jar   # build/libs/shard-all.jar
+spark-submit --class com.kognito.MainKt --master <master-url> build/libs/shard-all.jar <pipeline arguments>
+```
+
+Still to document, as the assignment requires:
+- The pipeline's CLI arguments (input path(s), dataset scale, output path), once the pipeline exists
+- The exact `spark-submit` command for the Docker Spark environment and the DI cluster (pending [`docs/lab-inputs.md`](docs/lab-inputs.md))
 - How to reproduce each experiment in [`experiments/LOG.md`](experiments/LOG.md)
 
 ## Configuration
 
-TODO:
-- Spark version
-- Cluster topology: number of workers, cores and memory per worker
-- **Every non-default `spark.*` property**, and which optimisation it belongs to
+| Setting | Value | Where |
+|---|---|---|
+| Spark / Scala | 4.3.0 / 2.13 | `sparkVersion` in `gradle.properties` |
+| JVM target | Java 21 (class file 65) | `jvmToolchain` in `build.gradle.kts` |
+| JVM module flags for local runs and tests | Spark's `--add-opens` list (not `spark.*` settings; `spark-submit` adds them itself) | `sparkJvmArgs` in `build.gradle.kts` |
+
+**Cluster topology** (workers, cores and memory per worker): local is an Apple M5 with 10 cores and 24 GB. Docker Spark and DI cluster are pending ([`docs/lab-inputs.md`](docs/lab-inputs.md)). All environments are recorded in the `experiments/LOG.md` environment table.
+
+**Non-default `spark.*` properties:** none yet. List each one here with the optimisation (OPT id) it belongs to.
+
+| Property | Value | Why (OPT id) |
+|---|---|---|
 
 ## Contributing
 

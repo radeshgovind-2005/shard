@@ -57,3 +57,9 @@ data/
 
 # Experiment raw output (event logs can be large; LOG.md and analysis CSVs are tracked)
 experiments/runs/*/eventlog/
+
+# Pipeline outputs and Spark local artefacts
+output/
+spark-warehouse/
+metastore_db/
+derby.log
