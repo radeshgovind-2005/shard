@@ -25,7 +25,7 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-// Spark 4.3 supports Java 17/21/25. 21 is what clusters typically run: bytecode built for a newer JDK won't load there.
+// Spark 4.2 supports Java 17/21/25. 21 is what clusters typically run: bytecode built for a newer JDK won't load there.
 kotlin {
     jvmToolchain(21)
 }

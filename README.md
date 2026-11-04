@@ -17,8 +17,8 @@ Spec: [`docs/Project_Description.md`](docs/Project_Description.md).
 
 ## Requirements
 
-- **JDK 21.** Gradle provisions it automatically through the toolchain resolver. Spark 4.3 supports Java 17/21/25 (not 24), and 21 matches what clusters typically run.
-- **Apache Spark 4.3.0 (Scala 2.13).** No local install needed: Gradle fetches it for `make run` and the tests. `spark-submit` is only needed on a cluster, whose Spark version must match `sparkVersion` in `gradle.properties`.
+- **JDK 21.** Gradle provisions it automatically through the toolchain resolver. Spark 4.2 supports Java 17/21/25 (not 24), and 21 matches what clusters typically run.
+- **Apache Spark 4.2.1 (Scala 2.13).** No local install needed: Gradle fetches it for `make run` and the tests. `spark-submit` is only needed on a cluster, whose Spark version must match `sparkVersion` in `gradle.properties`.
 - **Node.js** (LTS). Used only for the Git hooks (Husky + commitlint).
 - **GNU Make** and **curl**
 - **Disk:** about 0.8 GiB for one year of data, 30.2 GiB for all of 2009–2026 (plus room for Spark spill and outputs)
@@ -101,7 +101,7 @@ Still to document, as the assignment requires:
 
 | Setting | Value | Where |
 |---|---|---|
-| Spark / Scala | 4.3.0 / 2.13 | `sparkVersion` in `gradle.properties` |
+| Spark / Scala | 4.2.1 / 2.13 | `sparkVersion` in `gradle.properties` |
 | JVM target | Java 21 (class file 65) | `jvmToolchain` in `build.gradle.kts` |
 | JVM module flags for local runs and tests | Spark's `--add-opens` list (not `spark.*` settings; `spark-submit` adds them itself) | `sparkJvmArgs` in `build.gradle.kts` |
 
