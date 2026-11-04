@@ -1,0 +1,9 @@
+# The assignment forbids pushing the dataset: block Parquet files and anything under data/.
+blocked=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '(\.parquet$|^data/)' || true)
+if [ -n "$blocked" ]; then
+  echo "pre-commit: dataset files must not be committed:" >&2
+  echo "$blocked" >&2
+  exit 1
+fi
+
+make lint

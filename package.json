@@ -1,0 +1,16 @@
+{
+  "name": "shard",
+  "private": true,
+  "description": "Git tooling (Husky + commitlint) for SHARD. The Kotlin build lives in Gradle.",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "make lint",
+    "format": "make format",
+    "test": "make test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "husky": "^9.1.7"
+  }
+}

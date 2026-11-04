@@ -1,5 +1,7 @@
 plugins {
     kotlin("jvm") version "2.4.20"
+    application
+    id("com.diffplug.spotless") version "8.11.0"
 }
 
 group = "com.kognito"
@@ -15,6 +17,21 @@ dependencies {
 
 kotlin {
     jvmToolchain(24)
+}
+
+application {
+    mainClass = "com.radesh-govind.MainKt"
+}
+
+spotless {
+    kotlin {
+        target("src/**/*.kt")
+        ktlint()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint()
+    }
 }
 
 tasks.test {
