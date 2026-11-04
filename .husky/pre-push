@@ -1,0 +1,8 @@
+# Branches must be named <type>/<kebab-description> (see /new-branch); main is allowed for the initial setup push.
+branch=$(git rev-parse --abbrev-ref HEAD)
+if ! echo "$branch" | grep -Eq '^(main|(feat|fix|perf|refactor|test|docs|build|ci|chore|style|revert)/[a-z0-9][a-z0-9.-]*)$'; then
+  echo "pre-push: branch '$branch' must be <type>/<kebab-description>, e.g. feat/m2-temporal-demand" >&2
+  exit 1
+fi
+
+make check

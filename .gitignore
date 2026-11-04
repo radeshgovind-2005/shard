@@ -47,3 +47,13 @@ Thumbs.db
 *.log
 local.properties
 .env
+
+# Node (Git tooling only)
+node_modules/
+
+# Dataset (must never be committed)
+data/
+*.parquet
+
+# Experiment raw output (event logs can be large; LOG.md and analysis CSVs are tracked)
+experiments/runs/*/eventlog/
