@@ -29,7 +29,7 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-Current state: **Phase 1a skeleton.** Argument parsing, input checks and trip loading run end to end, both locally and on Docker Spark. M1–M3 don't exist yet, so `runPipeline` only prints the trip count. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md`, `01-SKELETON-AND-PROFILER.md`).
+Current state: **M1 done (Phase 1b).** Argument parsing, input checks, trip loading and M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`) run end to end. M2 and M3 don't exist yet. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md`, `01-SKELETON-AND-PROFILER.md`, `02-M1-CLEANING.md`).
 
 Data flow, in call order (all under `src/main/kotlin/com/radeshgovind/`):
 
@@ -38,15 +38,22 @@ Main.kt  parseArgs ─► findTripFiles ─► createSparkSession().use { runPip
             │              │
             └─ Invalid ────┴─ Missing  ─► stderr + exit 2 (before Spark starts)
 
-runPipeline:  loadTrips(files, fraction) ─► [M1 cleaning ─► M2 / M3 / O*]   (bracketed part: not built yet)
+runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► cleaningStats ─► <output>/m1/          (M1)
+                                                           └─► [removeInvalidTrips ─► M2 / M3 / O*]   (bracketed part: not wired yet)
 ```
 
 - `Main.kt`: `com.radeshgovind.MainKt`, the application and jar entry point. It owns the exit codes: 0 ok, 2 bad arguments or missing files, 1 a failure inside Spark.
 - `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`)
 - `ingest/`:
   - `TripFiles.kt`: the exact Parquet path for each month, with no globs, as `Found` or `Missing`
-  - `LoadTrips.kt`: reads those files, then samples with a fixed seed (42) when `--fraction` < 1. No schema enforcement; that's M1's job.
+  - `LoadTrips.kt`: reads those files, adds `source_year`/`source_month` from each file's name (`_metadata.file_path`, right on the scan), then samples with a fixed seed (42) when `--fraction` < 1
+  - `EnforceSchema.kt`: `enforceSchema()` selects and casts the 13 columns of `ENFORCED_SCHEMA` once (timestamps stay `TIMESTAMP_NTZ`) and drops everything else
+  - `TripColumns.kt`: trip column names as constants
   - `LoadZones.kt` and `ZoneColumns.kt`: the zone table, read with an explicit schema
+- `clean/` (M1):
+  - `InvalidTrip.kt`: an enum of the five criteria, each a never-null `condition()` plus its stat column name. The same list drives the filter and the stats.
+  - `RemoveInvalidTrips.kt`: `removeInvalidTrips()`, the clean trips that M2 and M3 will start from
+  - `CleaningStats.kt`: `cleaningStats()`, one `groupBy(source_year)` holding every count. Decisions D1–D6 are in `roadmap/02-M1-CLEANING.md` and README → M1.
 - `SparkSessions.kt`: uses `local[*]` unless `spark-submit` already set `spark.master`, and sets no other `spark.*` config
 - `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**
 - Planned packages: `.demand` (M2), `.zones` (M3), `.profiling` (the Lab 3 profiler port, roadmap 01 Part B)
@@ -57,7 +64,7 @@ runPipeline:  loadTrips(files, fraction) ─► [M1 cleaning ─► M2 / M3 / O*
 ## Code Conventions
 
 - **Style:** Kotlin official style, enforced by Spotless + ktlint (`intellij_idea`, 120 cols). Run `make format`; never hand-format.
-- **Structure:** follow the `kotlin-stepdown` skill (`.claude/skills/kotlin-stepdown/`). Entry point first, helpers below in call order, one level of abstraction per function, one concept per file, packages by feature (`com.radeshgovind.ingest`, `.demand`, `.zones`, `.cli`).
+- **Structure:** follow the `kotlin-stepdown` skill (`.claude/skills/kotlin-stepdown/`). Entry point first, helpers below in call order, one level of abstraction per function, one concept per file, packages by feature (`com.radeshgovind.ingest`, `.clean`, `.demand`, `.zones`, `.cli`).
 - **Spark** (details in `references/spark.md` of that skill):
   - Steps are extension functions on `Dataset<Row>` that return `Dataset<Row>` and **never run actions**. Hidden `count()`/`show()` calls add Spark jobs and distort profiling.
   - Enforce the schema once at load; keep column names as constants; prefer built-in `functions.*` over UDFs.
@@ -70,6 +77,8 @@ runPipeline:  loadTrips(files, fraction) ─► [M1 cleaning ─► M2 / M3 / O*
 - `make check` = lint + build + test. CI and the `pre-push` hook run the same thing.
 - `SparkSessionTest` runs a local Spark job with a shuffle. It guards the build setup (Spark on the classpath, Java 21, module flags).
 - `cli/ParseArgsTest`, `cli/MonthRangeTest` and `ingest/TripFilesTest` cover argument parsing and file resolution without Spark, so they run in milliseconds.
+- `ingest/EnforceSchemaTest` and `clean/CleaningTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row.
+- Inside an extension on `Dataset<Row>`, a bare `col(...)` resolves to the receiver's member `Dataset.col`, not `functions.col`. Build columns in top-level helpers instead.
 - Smoke check (verified 2026-11-05): `--years 2025-01` reads 3,475,226 trips both locally and on Docker. `--fraction 0.1` gives 347,645, the same on every run.
 - TODO as the operations land: unit tests per operation, and a correctness check on a one-month sample (row counts plus an `except`-diff in both directions). Every optimisation must keep results identical.
 
@@ -99,6 +108,6 @@ Never commit dataset files (`*.parquet`, `data/`), and never force-push or bypas
 - `docs/Project_Description.md`: assignment spec, report structure, grading
 - `docs/lectures/index.md`: lecture knowledge base (start here; it has a keyword lookup). For numbers and formulas: `docs/lectures/formulas-cheatsheet.md`
 - `docs/report/template.tex`: report template (acmart). Build with `latexmk -pdf -cd docs/report/template.tex`
-- `experiments/LOG.md`: environments, runs, hypotheses, optimisations
+- `experiments/LOG.md`: environments, runs, observations (unmeasured leads from development runs), hypotheses, optimisations
 - `docs/lab-inputs.md`: what is still needed from the labs and the course (Docker Spark, Lab 3 profiler, DI cluster, submission)
 - `.claude/skills/kotlin-stepdown/`: code style, plus `references/spark.md` for Spark specifics

@@ -8,4 +8,6 @@ data class PipelineArgs(
     val months: MonthRange,
     val fraction: Fraction,
     val operations: Set<Operation>,
-)
+) {
+    fun outputOf(operation: Operation): Path = output.resolve(operation.name.lowercase())
+}

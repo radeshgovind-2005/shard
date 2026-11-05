@@ -74,7 +74,7 @@ The dry run sends one HEAD request per missing month. During setup, after about 
 make setup
 make data-sample   # zone lookup + one month (2025-01)
 make check         # lint, build, tests (includes a local Spark smoke test)
-make run ARGS="--input data --output output --years 2025-01"   # prints the trip count (M1–M3 still to come)
+make run ARGS="--input data --output output --years 2025-01"   # writes output/m1/ and prints the cleaning stats
 ```
 
 ## Usage
@@ -94,6 +94,18 @@ shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <lis
 | `--ops` | no | `m1,m2,m3` | which results to write, comma-separated |
 
 Exit codes: `0` success, `2` bad arguments or missing input files (checked before Spark starts), `1` a failure while Spark runs.
+
+### M1: ingestion and cleaning
+
+Every trip is cast once to the 11 spec columns (plus `source_year` and `source_month`). A trip is invalid if it fails any of the spec's five criteria: `fare_amount ≤ 0`, `trip_distance ≤ 0`, `passenger_count` = 0 or > 6, dropoff ≤ pickup, or a `PULocationID`/`DOLocationID` outside 1–263. Decisions:
+
+- **D1:** a null `passenger_count` is valid, because it's neither 0 nor > 6. That's 23.8 % of 2025. These trips are kept and counted in `null_passenger_count`.
+- **D2:** every other null fails the criterion that tests it. Each criterion is a never-null boolean, so no trip is dropped without being counted.
+- **D3:** timestamps stay `TIMESTAMP_NTZ` (NYC wall-clock time as stored), so local and Docker runs agree whatever the session time zone.
+- **D4:** a trip's year and month come from its source file name, not its pickup date. The 214 stray-dated trips in 2025 stay in their file's month.
+- **D5:** the criteria overlap and are counted independently, so the per-criterion counts can add up to more than `removed_trips`.
+
+Output: `<output>/m1/` (Parquet), one row per source year: `source_year, raw_trips, bad_fare, bad_distance, bad_passenger_count, bad_time_order, bad_zone, removed_trips, kept_trips, null_passenger_count`. The run also prints it.
 
 ### Local
 
@@ -122,6 +134,7 @@ docker compose -f docker/docker-compose.yml down                          # stop
 - **Mounts:** `data/` → `/data` (read-only, on master and workers), `build/libs/` → `/jars`, `output/` → `/output`.
 - **Where things run:** the driver runs in the master container (client mode), and its job UI is at http://localhost:4040.
 - **Changing the cluster size:** re-run `up -d` with another `--scale spark-worker=N`.
+- **If a submit hangs on `Initial job has not accepted any resources`,** the master has lost its workers. This happens when the Mac sleeps: OrbStack pauses the containers, the master drops the workers after 60 s without a heartbeat, and they never register again. The master UI shows 0 workers, and its log says `Got heartbeat from unregistered worker`. Fix it with `down`, then `up -d --scale spark-worker=2`.
 - **After `make clean`, recreate the containers** with `up -d --force-recreate --scale spark-worker=2`. `make clean` deletes `build/`, and a running container keeps pointing at the deleted folder, so `/jars/shard-all.jar` disappears (the error is `Failed to load class com.radeshgovind.MainKt`). `make jar` alone is fine.
 
 ### DI cluster
