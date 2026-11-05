@@ -161,6 +161,44 @@ The criteria overlap (D5): in January they sum to 291,491, against 271,401 remov
 
 **Setup of these runs.** The worktree has no `data/`, so every run read the main checkout's `data/`. For Docker, the M3 jar was `docker cp`'d into the master container (`/tmp/shard-m3.jar`) instead of overwriting the main checkout's `build/libs/shard-all.jar`, and the output went to `/output/dev-m3` (the main checkout's `output/dev-m3/`, gitignored).
 
+### O3: demand forecasting features (2026-11-05, uncommitted O3 working tree on `361b669`)
+
+**Provenance.** No run-ids in LOG → Runs: development runs on uncommitted code. As for M3, the post-run plan and stage table come from a throwaway profiled run (`--run-id local-20261105-91 --runs-dir <scratchpad>`, `local-20261105-92` for 2025), used only because the profiler writes the final (post-AQE) plan without a code change. Its times are **not** a baseline measurement. Raw evidence, with the command for each file, goes in [`observations/o3-20261105/`](observations/o3-20261105/README.md).
+
+**What O3 computes** (report §2; decisions D23–D30 in README → O3):
+1. Cleaned trips → `hour_index` (zone-free, D24) → `groupBy(PULocationID, hour_index)`.
+2. The **grid** (`range(1..263) × range(hours of --years)`) is left-joined with those counts, and missing counts become 0 (D25). `pickup_date`, `day_of_week` and `hour_of_day` are derived from `hour_index`.
+3. `avg` and `var_samp` over the whole (`PULocationID`, `day_of_week`, `hour_of_day`) window (D26).
+4. **The 4-week-lag self-join:** the zero-filled grid, shifted by +672 hours, is left-joined back on (`PULocationID`, `hour_index`), with no hint (D27).
+5. `demand_index` and `is_demand_spike` (D28), then the `service_zone` join (D29).
+6. Parquet in `<output>/o3/`, not partitioned.
+
+**Correctness:** _pending (the user's runs)_. The invariants:
+- rows = 263 × hours in the range (195,672 for 2025-01, 2,303,880 for 2025)
+- `rows_with_lag` = 263 × (hours − 672) (18,936 and 2,127,144)
+- Σ `trip_count` = M1 `kept_trips` − trips whose pickup is outside the range (D24), at most 29 for 2025 per roadmap 02, with the gap checked by a one-off count query
+
+| Where | `--years` | Σ `trip_count` | M1 `kept_trips` | out of range | rows | rows_with_lag | spikes | zero_mean | evidence |
+|---|---|---|---|---|---|---|---|---|---|
+| local `local[*]` | 2025-01 | _pending_ | 3,203,825 | _pending_ | _pending_ (195,672) | _pending_ (18,936) | _pending_ | _pending_ | `console-local-2025-01.txt` |
+| Docker, 2 workers | 2025-01 | _pending_ | 3,203,825 | _pending_ | _pending_ | _pending_ | _pending_ | _pending_ | `console-docker-2025-01.txt` |
+| local `local[*]` | 2025 | _pending_ | 43,599,832 | _pending_ | _pending_ (2,303,880) | _pending_ (2,127,144) | _pending_ | _pending_ | `console-local-2025.txt` |
+
+- **Unit tests** (`forecast/DemandForecastTest`, 10 tests; `make check` _pending_):
+  - the exact schema; rows = zones × hours
+  - zero-fill: μ = 1/3 and variance 1, where averaging non-empty hours would give 3
+  - the lag across the January–February boundary is exactly 28 days back; null before the range, 0 for an empty lag hour
+  - a hand-made spike with DI 5 is flagged, and the rest of its bucket has 0.5; a zero mean gives a null DI and no spike
+  - a 2024 trip is left out; `service_zone` comes from the lookup
+  - in a Europe/Lisbon session, the hour index and each trip's hour are unchanged on 2025-03-30 and 2025-10-26
+
+**Post-run plan** (`plan-o3-final-local-2025-01.txt` and `plan-o3-final-local-2025.txt`, `isFinalPlan=true`): _pending_. This is the profiler's input for the join story, so record for both scales:
+- the join type of each join: the grid cross join (`BroadcastNestedLoopJoin` expected: both sides are `Range`s), the zero-fill left join, **the lag self-join**, and the `service_zone` join (`BroadcastHashJoin` expected, 12 KB)
+- every `Exchange` and its key: the trip aggregate, both sides of the zero-fill join, the bucket window, both sides of the self-join
+- whether a `ReusedExchange` appears: both self-join sides come from the same zero-filled grid, so the trip scan and aggregate could run once or twice
+- each self-join side's shuffle bytes and rows (from `stages-local-*.json`)
+- **Expected risk:** on 2025-01 a self-join side is about 196k rows (≈ 6 MB of shuffle), under the 10 MB broadcast threshold, so AQE may switch the SortMergeJoin to a broadcast join at runtime. On 2025 (2.3M rows per side) it should stay a SortMergeJoin. Whatever the plans show decides which scale carries the O3 join story in Part C.
+
 ## Hypotheses
 
 Written by `spark-profiler`. Each needs evidence: metric + run-id.

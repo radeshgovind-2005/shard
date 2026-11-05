@@ -7,8 +7,14 @@ import com.radeshgovind.cli.PipelineArgs
 import com.radeshgovind.demand.DemandColumns.PICKUP_BOROUGH
 import com.radeshgovind.demand.DemandColumns.TRIP_COUNT
 import com.radeshgovind.demand.temporalDemand
+import com.radeshgovind.forecast.ForecastColumns.HIST_MEAN_TRIPS
+import com.radeshgovind.forecast.ForecastColumns.IS_DEMAND_SPIKE
+import com.radeshgovind.forecast.ForecastColumns.LAG_4W_TRIP_COUNT
+import com.radeshgovind.forecast.demandForecast
+import com.radeshgovind.forecast.zoneHourGrid
 import com.radeshgovind.ingest.TripColumns.SOURCE_YEAR
 import com.radeshgovind.ingest.TripFiles
+import com.radeshgovind.ingest.ZoneColumns.SERVICE_ZONE
 import com.radeshgovind.ingest.enforceSchema
 import com.radeshgovind.ingest.loadTrips
 import com.radeshgovind.ingest.loadZones
@@ -43,6 +49,10 @@ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Fo
     }
     if (Operation.M3 in args.operations) {
         writeZoneStatistics(cleaned, spark.loadZones(args.input), args.outputOf(Operation.M3), profiler)
+    }
+    if (Operation.O3 in args.operations) {
+        val grid = spark.zoneHourGrid(args.months)
+        writeDemandForecast(cleaned, grid, spark.loadZones(args.input), args.outputOf(Operation.O3), profiler)
     }
     profiler.finish()
 }
@@ -103,6 +113,40 @@ private fun printZoneTotals(spark: SparkSession, out: Path) {
         .show(false)
 }
 
+// The grid (zones 1–263 × every hour of --years, D25) is a parameter, so its size is visible here. Not partitioned.
+private fun writeDemandForecast(
+    cleaned: Dataset<Row>,
+    grid: Dataset<Row>,
+    zones: Dataset<Row>,
+    out: Path,
+    profiler: Profiler,
+) {
+    profiler.profile("o3") {
+        cleaned.demandForecast(grid, zones).write().mode(SaveMode.Overwrite).parquet(out.toString())
+    }
+    printForecastTotals(cleaned.sparkSession(), out)
+}
+
+// Reads back the written zone-hour rows: per service zone the trips, rows, rows with a 4-week lag, spikes and
+// buckets with a zero mean, then the total (the null-service-zone row). Rows = 263 × hours in the range, and the
+// trips = M1's kept_trips minus the trips dated outside the range (D24). Outside the profile block on purpose.
+private fun printForecastTotals(spark: SparkSession, out: Path) {
+    spark.read().parquet(out.toString())
+        .rollup(SERVICE_ZONE)
+        .agg(
+            sum(TRIP_COUNT).alias(TRIP_COUNT),
+            count(lit(1)).alias(DEMAND_ROWS),
+            count(col(LAG_4W_TRIP_COUNT)).alias(ROWS_WITH_LAG),
+            count(`when`(col(IS_DEMAND_SPIKE), 1)).alias(SPIKE_ROWS),
+            count(`when`(col(HIST_MEAN_TRIPS).equalTo(0), 1)).alias(ZERO_MEAN_ROWS),
+        )
+        .orderBy(asc_nulls_last(SERVICE_ZONE))
+        .show(false)
+}
+
 private const val DEMAND_ROWS = "rows"
 private const val ANOMALY_ROWS = "anomalies"
 private const val NO_BASELINE_ROWS = "no_baseline"
+private const val ROWS_WITH_LAG = "rows_with_lag"
+private const val SPIKE_ROWS = "spikes"
+private const val ZERO_MEAN_ROWS = "zero_mean"

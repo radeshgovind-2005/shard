@@ -7,6 +7,9 @@ enum class Operation(val readsZones: Boolean) {
 
     // M3 joins the borough from the zone lookup too (roadmap 00 §1d).
     M3(readsZones = true),
+
+    // O3 annotates each zone with its service_zone.
+    O3(readsZones = true),
     ;
 
     companion object {
