@@ -1,0 +1,20 @@
+-- What is_demand_spike catches on 2025 (D28): spikes by the hour's count and by the bucket's mean.
+-- Run: spark-sql --master local[2] -f spike-breakdown.sql (Docker master, over a copy of the 2025 O3 output).
+# Output 1: rows spikes spike_share. 2: bucket_mean rows spikes spikes_with_1_trip. 3: max/p50/p99 demand_index. 4: top-10 spikes in buckets with mean >= 100.
+2303880	226925	0.0985
+a: mean < 0.5	760156	97141	81368
+b: 0.5-1	302406	50249	0
+c: 1-10	785833	74451	0
+d: 10-100	304779	4849	0
+e: >= 100	150706	235	0
+53.0	0.7536231884057971	7.172413793103448
+138	Airports	2025-05-15	0	444	106.8	4.16
+186	Yellow Zone	2025-09-01	23	426	122.0	3.49
+186	Yellow Zone	2025-10-10	0	440	128.0	3.44
+132	Airports	2025-07-15	1	434	134.0	3.24
+138	Airports	2025-11-29	20	317	101.0	3.14
+186	Yellow Zone	2025-05-30	0	396	128.0	3.09
+138	Airports	2025-08-14	0	330	106.8	3.09
+186	Yellow Zone	2025-09-22	0	336	111.7	3.01
+79	Yellow Zone	2025-06-19	0	302	100.8	3.0
+138	Airports	2025-06-26	0	320	106.8	3.0

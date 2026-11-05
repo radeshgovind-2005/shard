@@ -1,0 +1,20 @@
+// Catalyst's size estimates for every join in O3's optimized plan (what the static join choice reads).
+// Run: spark-shell --master local[2] --jars /tmp/shard-o3.jar < /tmp/join-size-estimates.scala (Docker master).
+# Optimized-plan Join nodes, outermost first: the service_zone join, the lag self-join, then the zero-fill join and the grid cross join (twice: once per self-join side).
+# sizeInBytes is Catalyst's static estimate (CBO off): file bytes scaled by row width, and products for joins. It is what the broadcast choice compares with 10 MiB.
+## 2025-01 (autoBroadcastJoinThreshold = 10485760b)
+## input files: 1, bytes on disk: 59,158,238
+JOIN Inner      keys=PULocationID,LocationID                                 left=         189,952,558,054,376 B  right=                 5,480 B
+JOIN LeftOuter  keys=PULocationID,hour_index                                 left=                  20,749,918 B  right=             9,576,886 B
+JOIN LeftOuter  keys=PULocationID,hour_index                                 left=                   7,044,192 B  right=             5,724,990 B
+JOIN Cross      keys=-                                                       left=                       1,578 B  right=                 4,464 B
+JOIN LeftOuter  keys=PULocationID,hour_index                                 left=                   7,044,192 B  right=             5,724,990 B
+JOIN Cross      keys=-                                                       left=                       1,578 B  right=                 4,464 B
+## 2025 (autoBroadcastJoinThreshold = 10485760b)
+## input files: 12, bytes on disk: 829,973,299
+JOIN Inner      keys=PULocationID,LocationID                                 left=      31,051,095,421,069,112 B  right=                 5,480 B
+JOIN LeftOuter  keys=PULocationID,hour_index                                 left=                 265,296,969 B  right=           122,444,757 B
+JOIN LeftOuter  keys=PULocationID,hour_index                                 left=                  82,939,680 B  right=            80,319,996 B
+JOIN Cross      keys=-                                                       left=                       1,578 B  right=                52,560 B
+JOIN LeftOuter  keys=PULocationID,hour_index                                 left=                  82,939,680 B  right=            80,319,996 B
+JOIN Cross      keys=-                                                       left=                       1,578 B  right=                52,560 B

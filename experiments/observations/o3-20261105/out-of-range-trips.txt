@@ -1,0 +1,9 @@
+-- Kept trips (M1's five criteria, written from scratch) whose pickup is outside the --years range (D24).
+-- Run: spark-sql --master local[2] -f out-of-range-trips.sql (Docker master, session time zone UTC).
+# Output (years, out_of_range), then 2025's out-of-range trips by pickup year:
+2025-01	22
+2025	29
+2007	1
+2008	1
+2009	6
+2024	21

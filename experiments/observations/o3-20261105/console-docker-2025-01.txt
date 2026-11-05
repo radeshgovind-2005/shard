@@ -1,0 +1,17 @@
+# make jar; docker cp build/libs/shard-all.jar <master>:/tmp/shard-o3.jar
+# docker compose -f docker/docker-compose.yml exec spark-master /opt/spark/bin/spark-submit --class com.radeshgovind.MainKt --master spark://spark-master:7077 /tmp/shard-o3.jar --input /data --output /output/dev-o3 --years 2025-01 --ops m1,o3
+# 2026-11-05, 2 workers x 2 cores (1024 MiB), commit ee960bd, session time zone UTC.
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|source_year|raw_trips|bad_fare|bad_distance|bad_passenger_count|bad_time_order|bad_zone|removed_trips|kept_trips|null_passenger_count|
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|2025       |3475226  |145516  |90893       |24674              |2051          |28357   |271401       |3203825   |540149              |
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
++------------+----------+------+-------------+------+---------+
+|service_zone|trip_count|rows  |rows_with_lag|spikes|zero_mean|
++------------+----------+------+-------------+------+---------+
+|Airports    |213351    |1488  |144          |44    |4        |
+|Boro Zone   |182452    |152520|14760        |14605 |56565    |
+|EWR         |61        |744   |72           |42    |552      |
+|Yellow Zone |2807939   |40920 |3960         |994   |3034     |
+|NULL        |3203803   |195672|18936        |15685 |60155    |
++------------+----------+------+-------------+------+---------+

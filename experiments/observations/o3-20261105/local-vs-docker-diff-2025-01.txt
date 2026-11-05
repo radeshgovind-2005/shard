@@ -1,0 +1,7 @@
+-- Local vs Docker O3 output, 2025-01. Keys and integer columns must match exactly; doubles within 1e-12 relative.
+-- Run: spark-sql --master local[2] -f local-vs-docker-o3.sql (Docker master).
+# Output: local_rows docker_rows / exact EXCEPT ALL both ways / matched int_mismatches max_rel_mean max_rel_var max_rel_di di_null_mismatches
+195672	195672
+27588
+27588
+195672	0	0.0	2.4086194432545807E-15	0.0	0

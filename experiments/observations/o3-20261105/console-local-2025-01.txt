@@ -1,0 +1,22 @@
+# make run ARGS="--input <shard>/data --output <scratchpad>/out-2025-01 --years 2025-01 --ops m1,o3 --run-id local-20261105-93 --runs-dir <scratchpad>/runs --git-sha ee960bd"
+# 2026-11-05, local[*] (10 cores), commit ee960bd (O3 + main 9b4cc8a). Throwaway profiled run: not a measurement.
+./gradlew run --args="--input <shard>/data --output <scratchpad>/out-2025-01 --years 2025-01 --ops m1,o3 --run-id local-20261105-93 --runs-dir <scratchpad>/runs --git-sha ee960bd"
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|source_year|raw_trips|bad_fare|bad_distance|bad_passenger_count|bad_time_order|bad_zone|removed_trips|kept_trips|null_passenger_count|
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|2025       |3475226  |145516  |90893       |24674              |2051          |28357   |271401       |3203825   |540149              |
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
++------------+----------+------+-------------+------+---------+
+|service_zone|trip_count|rows  |rows_with_lag|spikes|zero_mean|
++------------+----------+------+-------------+------+---------+
+|Airports    |213351    |1488  |144          |44    |4        |
+|Boro Zone   |182452    |152520|14760        |14605 |56565    |
+|EWR         |61        |744   |72           |42    |552      |
+|Yellow Zone |2807939   |40920 |3960         |994   |3034     |
+|NULL        |3203803   |195672|18936        |15685 |60155    |
++------------+----------+------+-------------+------+---------+
+profiled run <scratchpad>/runs/local-20261105-93
+profile    |   wall s | stages |  tasks |  shuffle R |  shuffle W |      spill | max skew
+m1         |     2.96 |      2 |     11 |      399 B |      399 B |        0 B |     4.38
+o3         |     3.20 |      7 |     45 |    4.9 MiB |    4.9 MiB |        0 B |    10.01
+BUILD SUCCESSFUL in 12s
