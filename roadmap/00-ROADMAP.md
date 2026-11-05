@@ -30,7 +30,7 @@ Each optimisation needs evidence of a bottleneck before you change anything (a s
 | Experiment log structure | ✅ done, but empty: [`experiments/LOG.md`](../experiments/LOG.md) |
 | Perf-loop agents and Git slash commands | ✅ done: `.claude/agents/`, `.claude/commands/` |
 | Report template | ✅ there, nothing written yet |
-| **Pipeline code** | ❌ [`src/main/kotlin/Main.kt`](../src/main/kotlin/Main.kt) is still "Hello Kotlin" |
+| **Pipeline code** | 🟡 skeleton (1a) and M1 (1b) done; M2 and M3 next: [`src/main/kotlin/com/radeshgovind/`](../src/main/kotlin/com/radeshgovind/) |
 | **Profiler** | ❌ the Lab 3 one is Python. Needs a Kotlin port (Phase 2) |
 | Docker Spark in this repo | ✅ done: [`docker/docker-compose.yml`](../docker/docker-compose.yml), Spark 4.2.1 / Java 21, SparkPi ran on 2 workers |
 | DI cluster | ❓ no information anywhere in the course material |
@@ -111,23 +111,25 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 - [x] Never write into `data/`. Outputs go under `--output` (e.g. `output/m1/`, `output/m2/`).
 
 ### 1b. M1: ingestion and cleaning (`feat/m1-ingestion`)
-- [ ] Load `trips/yellow_tripdata_YYYY-MM.parquet` for the selected years, **2011 onwards only**. 2009–2010 have lat/lon and no zone IDs (README → Dataset).
-- [ ] `enforceSchema()`: select only the 11 spec columns, cast to the spec types (ints vary between `int32` and `int64` across years), and handle column-name case drift. Do it once, at load. Watch for files whose schemas don't merge on read; you may need to read per file or year, cast, then union.
-- [ ] Add a `year` column. Decide whether it comes from the file name or from the pickup timestamp: files contain stray out-of-range dates. Document the choice.
-- [ ] Five criteria as named `Column`s, combined with `.and()`:
+> **Full spec: [`02-M1-CLEANING.md`](02-M1-CLEANING.md).** It fixes the decisions below from the measured 2025 data: null passengers are kept, the year comes from the source file, timestamps stay `TIMESTAMP_NTZ`. It also lists the exact expected counts. Where it differs from this list, the spec wins.
+
+- [x] Load `trips/yellow_tripdata_YYYY-MM.parquet` for the selected years, **2011 onwards only**. 2009–2010 have lat/lon and no zone IDs (README → Dataset).
+- [x] `enforceSchema()`: select only the 11 spec columns, cast to the spec types (ints vary between `int32` and `int64` across years), and handle column-name case drift. Do it once, at load. Watch for files whose schemas don't merge on read; you may need to read per file or year, cast, then union. *(Done for 2025, whose 12 files share one schema. Name-case drift and per-file reads land only when other years are added.)*
+- [x] Add a `year` column. Decide whether it comes from the file name or from the pickup timestamp: files contain stray out-of-range dates. Document the choice.
+- [x] Five criteria as named `Column`s, combined with `.and()`:
   1. `fare_amount ≤ 0`
   2. `trip_distance ≤ 0`
   3. `passenger_count = 0` or `> 6`
   4. dropoff ≤ pickup
   5. `PULocationID` or `DOLocationID` outside 1–263
-- [ ] Decide how **nulls** count (e.g. a null `passenger_count`) and document it.
-- [ ] Cleaning stats: **per year, the number of records removed per criterion.** Use one `groupBy(year).agg(sum(when(criterion, 1).otherwise(0)) …)` rather than one `count()` per filter. Criteria overlap (one row can fail several), so say in the report that the counts aren't exclusive. Also report the total rows removed.
-- [ ] Output: the cleaned `Dataset<Row>` (returned, never acted on inside the step), plus a small stats table written to `output/m1/`.
-- [ ] Test: a hand-made DataFrame with one row per failure case, plus one valid row. Assert the cleaned count and the per-criterion counts.
+- [x] Decide how **nulls** count (e.g. a null `passenger_count`) and document it.
+- [x] Cleaning stats: **per year, the number of records removed per criterion.** Use one `groupBy(year).agg(sum(when(criterion, 1).otherwise(0)) …)` rather than one `count()` per filter. Criteria overlap (one row can fail several), so say in the report that the counts aren't exclusive. Also report the total rows removed.
+- [x] Output: the cleaned `Dataset<Row>` (returned, never acted on inside the step), plus a small stats table written to `output/m1/`.
+- [x] Test: a hand-made DataFrame with one row per failure case, plus one valid row. Assert the cleaned count and the per-criterion counts.
 
 ### 1c. M2: temporal demand (`feat/m2-temporal-demand`)
 - [ ] Join the cleaned trips with the zone lookup on `PULocationID` to get `pickup_borough`. A plain join is fine for now; broadcasting is a later optimisation.
-- [ ] Derive `day_of_week` (`dayofweek`), `hour_of_day` (`hour`), and duration in minutes from `unix_timestamp(dropoff) - unix_timestamp(pickup)`.
+- [ ] Derive `day_of_week` (`dayofweek`), `hour_of_day` (`hour`), and duration in minutes from `timestamp_diff("SECOND", pickup, dropoff) / 60.0`. That works on `TIMESTAMP_NTZ` without attaching a time zone (see 02 → D3).
 - [ ] `groupBy(pickup_borough, day_of_week, hour_of_day)`: `count`, `avg(fare_amount)`, `avg(duration_min)`, `avg(trip_distance)`.
 - [ ] Write Parquet with `partitionBy("pickup_borough")` (the spec says "partitioned by borough").
 - [ ] Test: a handful of trips across two boroughs, then check the counts and means.
@@ -145,7 +147,9 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 - [ ] Open the Spark UI at http://localhost:4040 while it runs and look at the Jobs, Stages and SQL tabs. You'll need them for the profiling.
 - [x] Update the "Architecture Map" TODO in `AGENTS.md` and the CLI section in the README
 
-## 6. Later phases (each gets its own roadmap file)
+## 6. Later phases
+
+Detailed roadmap files so far: [`01-SKELETON-AND-PROFILER.md`](01-SKELETON-AND-PROFILER.md) (skeleton, profiler, baseline protocol) and [`02-M1-CLEANING.md`](02-M1-CLEANING.md). The numbers below are phase order, not file names.
 
 | # | Phase | One line |
 |---|---|---|

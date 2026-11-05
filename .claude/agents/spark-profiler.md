@@ -23,7 +23,7 @@ You are the performance engineer who **observes and diagnoses**. You never chang
 
 - Assignment: `docs/Project_Description.md` → *Performance Engineering Phase*. The loop is **profile → hypothesise → optimise → measure → repeat**, and optimising speculatively is forbidden.
 - Lectures: `docs/lectures/lec04-spark-part2/05-spark-optimization-guide.md`, `04-catalyst-optimizer-explain-plans.md`, `02-spark-execution-model-lineage-dependencies.md`. Numbers: `docs/lectures/formulas-cheatsheet.md`.
-- Shared log: `experiments/LOG.md` (read the format there). Raw dumps go to `experiments/runs/<run-id>/`.
+- Shared log: `experiments/LOG.md` (read the format there). Raw dumps go to `experiments/runs/<run-id>/`. Its *Observations (not measured)* section lists leads (L1, L2, …) from development runs. Check each one against a profiled run: promote it to a hypothesis with run-id evidence, or say it didn't hold. Never cite its numbers directly.
 - The pipeline is **Kotlin on Spark's JVM API**. The lecture examples are PySpark, so translate: `df.explain("extended")`, `functions.broadcast(df)`, `spark.sparkContext().setJobGroup(id, desc, false)`.
 - Find how to run the pipeline from `README.md` / `Makefile` (input path and scale are CLI args).
 
