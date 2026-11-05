@@ -12,14 +12,17 @@
 
 | Path | What |
 |---|---|
-| `src/main/kotlin/` | Pipeline code (`com.radeshgovind`) |
+| `src/main/kotlin/` | Pipeline code (`com.radeshgovind`: `Main`, `Pipeline`, `cli/`, `ingest/`; map in AGENTS.md → Architecture Map) |
 | `src/test/kotlin/` | Tests (`make test`) |
 | `data/` | Local dataset only (`make data`): gitignored, blocked by `pre-commit` |
+| `docker/docker-compose.yml` | Docker Spark cluster (Spark 4.2.1 / Java 21); README → Usage has the commands |
+| `roadmap/` | Work plan: `00-ROADMAP.md` (phases, timeline), `01-SKELETON-AND-PROFILER.md` (skeleton, profiler, baseline protocol) |
 | `experiments/LOG.md` | Environments, runs, hypotheses, optimisations: the source of every reported number |
 | `experiments/runs/<run-id>/` | Raw stage JSON and plans (event logs gitignored) |
 | `experiments/analysis/` | CSVs for report charts |
 | `docs/Project_Description.md` | Assignment spec |
-| `docs/lab-inputs.md` | Still needed from labs/course: Docker Spark, Lab 3 profiler, DI cluster |
+| `docs/lab-inputs.md` | Inputs from labs/course: Docker Spark and the Lab 3 profiler found; DI cluster and submission still pending |
+| `docs/assets/` | README images |
 | `docs/lectures/` | Lecture knowledge base (`index.md` first) |
 | `docs/report/` | LaTeX report (`template.tex`) |
 | `.claude/agents/`, `commands/`, `skills/` | Agents, slash commands, the `kotlin-stepdown` skill |

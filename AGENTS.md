@@ -29,12 +29,30 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-Current state: build only. `src/main/kotlin/Main.kt` (`com.radeshgovind.MainKt`, the application and jar entry point) is still the Hello Kotlin template.
+Current state: **Phase 1a skeleton.** Argument parsing, input checks and trip loading run end to end, both locally and on Docker Spark. M1–M3 don't exist yet, so `runPipeline` only prints the trip count. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md`, `01-SKELETON-AND-PROFILER.md`).
 
+Data flow, in call order (all under `src/main/kotlin/com/radeshgovind/`):
+
+```
+Main.kt  parseArgs ─► findTripFiles ─► createSparkSession().use { runPipeline(...) }
+            │              │
+            └─ Invalid ────┴─ Missing  ─► stderr + exit 2 (before Spark starts)
+
+runPipeline:  loadTrips(files, fraction) ─► [M1 cleaning ─► M2 / M3 / O*]   (bracketed part: not built yet)
+```
+
+- `Main.kt`: `com.radeshgovind.MainKt`, the application and jar entry point. It owns the exit codes: 0 ok, 2 bad arguments or missing files, 1 a failure inside Spark.
+- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`)
+- `ingest/`:
+  - `TripFiles.kt`: the exact Parquet path for each month, with no globs, as `Found` or `Missing`
+  - `LoadTrips.kt`: reads those files, then samples with a fixed seed (42) when `--fraction` < 1. No schema enforcement; that's M1's job.
+  - `LoadZones.kt` and `ZoneColumns.kt`: the zone table, read with an explicit schema
+- `SparkSessions.kt`: uses `local[*]` unless `spark-submit` already set `spark.master`, and sets no other `spark.*` config
+- `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**
+- Planned packages: `.demand` (M2), `.zones` (M3), `.profiling` (the Lab 3 profiler port, roadmap 01 Part B)
 - Build: `build.gradle.kts` (Spark 4.2.1 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
 - Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
-
-TODO, once the pipeline exists: packages, and the data flow (load → M1 → M2 / M3 / O*) with the files that implement each operation.
+- Cluster: `docker/docker-compose.yml` (standalone Spark 4.2.1 / Java 21; `data/` → `/data` read-only, `build/libs/` → `/jars`, `output/` → `/output`)
 
 ## Code Conventions
 
@@ -51,7 +69,9 @@ TODO, once the pipeline exists: packages, and the data flow (load → M1 → M2 
 
 - `make check` = lint + build + test. CI and the `pre-push` hook run the same thing.
 - `SparkSessionTest` runs a local Spark job with a shuffle. It guards the build setup (Spark on the classpath, Java 21, module flags).
-- TODO, once the pipeline exists: unit tests per operation, and a correctness check on a one-month sample (row counts plus an `except`-diff in both directions). Every optimisation must keep results identical.
+- `cli/ParseArgsTest`, `cli/MonthRangeTest` and `ingest/TripFilesTest` cover argument parsing and file resolution without Spark, so they run in milliseconds.
+- Smoke check (verified 2026-11-05): `--years 2025-01` reads 3,475,226 trips both locally and on Docker. `--fraction 0.1` gives 347,645, the same on every run.
+- TODO as the operations land: unit tests per operation, and a correctness check on a one-month sample (row counts plus an `except`-diff in both directions). Every optimisation must keep results identical.
 
 ## Workflow
 
