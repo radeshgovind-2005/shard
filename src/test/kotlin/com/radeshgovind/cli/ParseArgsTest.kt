@@ -1,5 +1,6 @@
 package com.radeshgovind.cli
 
+import com.radeshgovind.profiling.RunId
 import java.nio.file.Path
 import java.time.YearMonth
 import kotlin.test.Test
@@ -64,6 +65,32 @@ class ParseArgsTest {
         assertContains(reasonWithRequired("--verbose", "yes"), "unknown flag")
         assertContains(reasonWithRequired("--years"), "needs a value")
         assertContains(reasonFor("--input", "--output", "out"), "needs a value")
+    }
+
+    @Test
+    fun `a run id turns profiling on, with the default runs folder`() {
+        val expected = ProfilingArgs(RunId("local-20261105-01"), Path.of("experiments/runs"), "abc1234")
+        assertEquals(expected, parsed("--run-id", "local-20261105-01", "--git-sha", "abc1234").profiling)
+    }
+
+    @Test
+    fun `reads the runs folder, and leaves the git sha out when it isn't given`() {
+        val expected = ProfilingArgs(RunId("docker-20261105-02"), Path.of("/runs"), null)
+        assertEquals(expected, parsed("--run-id", "docker-20261105-02", "--runs-dir", "/runs").profiling)
+    }
+
+    @Test
+    fun `rejects malformed run ids`() {
+        listOf("prod-20261105-01", "local-2026115-01", "local-20261105-1", "local-20261105").forEach {
+            assertContains(reasonWithRequired("--run-id", it), "--run-id", message = "for --run-id $it")
+        }
+    }
+
+    @Test
+    fun `rejects profiling flags without a run id, and a malformed git sha`() {
+        assertContains(reasonWithRequired("--git-sha", "abc1234"), "only works with --run-id")
+        assertContains(reasonWithRequired("--runs-dir", "/runs"), "only works with --run-id")
+        assertContains(reasonWithRequired("--run-id", "local-20261105-01", "--git-sha", "xyz"), "--git-sha")
     }
 
     private val required = arrayOf("--input", "data", "--output", "out")

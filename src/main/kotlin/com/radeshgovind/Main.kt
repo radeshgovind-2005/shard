@@ -2,11 +2,14 @@ package com.radeshgovind
 
 import com.radeshgovind.cli.ArgsParse
 import com.radeshgovind.cli.PipelineArgs
+import com.radeshgovind.cli.ProfilingArgs
 import com.radeshgovind.cli.USAGE
 import com.radeshgovind.cli.parseArgs
 import com.radeshgovind.ingest.TripFiles
 import com.radeshgovind.ingest.findTripFiles
 import com.radeshgovind.ingest.missingZonesFile
+import com.radeshgovind.profiling.RunReport
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.system.exitProcess
 
@@ -30,7 +33,14 @@ private fun runWithZonesFile(args: PipelineArgs, files: TripFiles.Found) {
 }
 
 private fun runWithSpark(args: PipelineArgs, files: TripFiles.Found) {
-    createSparkSession().use { spark -> runPipeline(spark, args, files) }
+    val eventLogDir = args.profiling?.let(::prepareRunDir)
+    createSparkSession(eventLogDir).use { spark -> runPipeline(spark, args, files) }
+}
+
+// Checked before Spark starts, like the input files. A run id names exactly one run, so it's never reused.
+private fun prepareRunDir(profiling: ProfilingArgs): Path {
+    if (Files.exists(profiling.runDir)) exitWithReusedRunId(profiling.runDir)
+    return Files.createDirectories(RunReport.eventLogDirOf(profiling.runDir))
 }
 
 private fun exitWithUsage(reason: String): Nothing {
@@ -42,6 +52,11 @@ private fun exitWithUsage(reason: String): Nothing {
 private fun exitWithMissingFiles(paths: List<Path>): Nothing {
     System.err.println("shard: missing input files (run `make data`):")
     paths.forEach { System.err.println("  $it") }
+    exitProcess(BAD_INPUT)
+}
+
+private fun exitWithReusedRunId(runDir: Path): Nothing {
+    System.err.println("shard: run id already used, pick the next number: $runDir")
     exitProcess(BAD_INPUT)
 }
 

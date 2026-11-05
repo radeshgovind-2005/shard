@@ -16,6 +16,7 @@ services:
       - ../data:/data:ro
       - ../build/libs:/jars:ro
       - ../output:/output
+      - ../experiments/runs:/runs   # profiled runs (--runs-dir /runs); the driver writes them, so master only
 
   spark-worker:
     image: *spark-image
