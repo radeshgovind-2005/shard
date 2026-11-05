@@ -1,0 +1,79 @@
+# make run ARGS="--input <shard>/data --output output --years 2025-01 --ops m1,o1 --run-id local-20261105-91 --runs-dir <scratch>/runs" (2026-11-05, local[*], uncommitted O1 on 361b669). Spark INFO/WARN lines removed.
+./gradlew run --args="--input <shard>/data --output output --years 2025-01 --ops m1,o1 --run-id local-20261105-91 --runs-dir <scratch>/runs"
+
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|source_year|raw_trips|bad_fare|bad_distance|bad_passenger_count|bad_time_order|bad_zone|removed_trips|kept_trips|null_passenger_count|
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|2025       |3475226  |145516  |90893       |24674              |2051          |28357   |271401       |3203825   |540149              |
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+
++--------+------------+--------------+-------+-------------+--------------------+
+|day_type|payment_type|pickup_borough|trips  |flagged_trips|anomaly_rate        |
++--------+------------+--------------+-------+-------------+--------------------+
+|weekday |0           |Bronx         |4946   |102          |0.020622725434694702|
+|weekday |1           |Bronx         |4349   |75           |0.01724534375718556 |
+|weekday |2           |Bronx         |329    |13           |0.03951367781155015 |
+|weekday |3           |Bronx         |19     |0            |0.0                 |
+|weekday |4           |Bronx         |36     |1            |0.027777777777777776|
+|weekday |0           |Brooklyn      |20676  |405          |0.01958792803250145 |
+|weekday |1           |Brooklyn      |17279  |394          |0.022802245500318306|
+|weekday |2           |Brooklyn      |1238   |33           |0.02665589660743134 |
+|weekday |3           |Brooklyn      |55     |7            |0.12727272727272726 |
+|weekday |4           |Brooklyn      |162    |13           |0.08024691358024691 |
+|weekday |1           |EWR           |40     |0            |0.0                 |
+|weekday |2           |EWR           |1      |0            |0.0                 |
+|weekday |3           |EWR           |1      |0            |0.0                 |
+|weekday |0           |Manhattan     |242825 |7334         |0.03020282096159786 |
+|weekday |1           |Manhattan     |1631159|1219         |7.47321383139228E-4 |
+|weekday |2           |Manhattan     |239438 |992          |0.004143034940151521|
+|weekday |3           |Manhattan     |7027   |163          |0.023196243062473317|
+|weekday |4           |Manhattan     |20000  |419          |0.02095             |
+|weekday |0           |Queens        |16699  |216          |0.012934906281813282|
+|weekday |1           |Queens        |143760 |732          |0.005091819699499165|
+|weekday |2           |Queens        |29436  |161          |0.005469493137654572|
+|weekday |3           |Queens        |1369   |39           |0.028487947406866325|
+|weekday |4           |Queens        |4726   |69           |0.014600084638171815|
+|weekday |0           |Staten Island |100    |0            |0.0                 |
+|weekday |1           |Staten Island |6      |0            |0.0                 |
+|weekday |2           |Staten Island |44     |0            |0.0                 |
+|weekend |0           |Bronx         |1913   |13           |0.006795608991113434|
+|weekend |1           |Bronx         |1023   |15           |0.01466275659824047 |
+|weekend |2           |Bronx         |103    |4            |0.038834951456310676|
+|weekend |3           |Bronx         |8      |1            |0.125               |
+|weekend |4           |Bronx         |9      |1            |0.1111111111111111  |
+|weekend |0           |Brooklyn      |10700  |94           |0.008785046728971962|
+|weekend |1           |Brooklyn      |4473   |106          |0.023697742007601164|
+|weekend |2           |Brooklyn      |612    |18           |0.029411764705882353|
+|weekend |3           |Brooklyn      |54     |7            |0.12962962962962962 |
+|weekend |4           |Brooklyn      |72     |7            |0.09722222222222222 |
+|weekend |1           |EWR           |19     |0            |0.0                 |
+|weekend |0           |Manhattan     |108132 |426          |0.003939629341915437|
+|weekend |1           |Manhattan     |536666 |434          |8.086966567660333E-4|
+|weekend |2           |Manhattan     |78951  |343          |0.004344466821192891|
+|weekend |3           |Manhattan     |2530   |61           |0.024110671936758893|
+|weekend |4           |Manhattan     |8020   |172          |0.02144638403990025 |
+|weekend |0           |Queens        |6620   |56           |0.008459214501510574|
+|weekend |1           |Queens        |46074  |258          |0.005599687459304597|
+|weekend |2           |Queens        |9589   |66           |0.006882886640942747|
+|weekend |3           |Queens        |510    |11           |0.021568627450980392|
+|weekend |4           |Queens        |1978   |26           |0.01314459049544995 |
+|weekend |0           |Staten Island |31     |0            |0.0                 |
+|weekend |1           |Staten Island |1      |0            |0.0                 |
+|weekend |2           |Staten Island |14     |0            |0.0                 |
+|weekend |3           |Staten Island |2      |0            |0.0                 |
+|weekend |4           |Staten Island |1      |0            |0.0                 |
++--------+------------+--------------+-------+-------------+--------------------+
+
++--------+-------+-------------+---------------------+
+|day_type|trips  |flagged_trips|anomaly_rate         |
++--------+-------+-------------+---------------------+
+|weekday |2385720|12387        |0.005192143252351491 |
+|weekend |818105 |2119         |0.0025901320735113465|
+|NULL    |3203825|14506        |0.004527712968092827 |
++--------+-------+-------------+---------------------+
+
+profiled run <scratch>/runs/local-20261105-91
+profile    |   wall s | stages |  tasks |  shuffle R |  shuffle W |      spill | max skew
+m1         |     3.17 |      2 |     11 |      399 B |      399 B |        0 B |     4.45
+o1         |     3.05 |      4 |     23 |   36.1 MiB |   36.1 MiB |        0 B |    18.47
+
