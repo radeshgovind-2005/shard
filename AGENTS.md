@@ -29,7 +29,7 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-Current state: **M1 done (Phase 1b).** Argument parsing, input checks, trip loading and M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`) run end to end. M2 and M3 don't exist yet. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md`, `01-SKELETON-AND-PROFILER.md`, `02-M1-CLEANING.md`).
+Current state: **M2 done (Phase 1c).** Argument parsing, input checks, trip loading, M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`) and M2 (temporal demand per borough, day and hour, written to `<output>/m2/`) run end to end. M3 doesn't exist yet. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md` §1d, `01-SKELETON-AND-PROFILER.md`, `02-M1-CLEANING.md`).
 
 Data flow, in call order (all under `src/main/kotlin/com/radeshgovind/`):
 
@@ -38,8 +38,9 @@ Main.kt  parseArgs ─► findTripFiles ─► createSparkSession().use { runPip
             │              │
             └─ Invalid ────┴─ Missing  ─► stderr + exit 2 (before Spark starts)
 
-runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► cleaningStats ─► <output>/m1/          (M1)
-                                                           └─► [removeInvalidTrips ─► M2 / M3 / O*]   (bracketed part: not wired yet)
+runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► cleaningStats ─► <output>/m1/                          (M1)
+                                                           └─► removeInvalidTrips ─┬─► temporalDemand(loadZones) ─► <output>/m2/  (M2)
+                                                                                   └─► [M3 / O*]                  (not wired yet)
 ```
 
 - `Main.kt`: `com.radeshgovind.MainKt`, the application and jar entry point. It owns the exit codes: 0 ok, 2 bad arguments or missing files, 1 a failure inside Spark.
@@ -54,9 +55,14 @@ runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► clean
   - `InvalidTrip.kt`: an enum of the five criteria, each a never-null `condition()` plus its stat column name. The same list drives the filter and the stats.
   - `RemoveInvalidTrips.kt`: `removeInvalidTrips()`, the clean trips that M2 and M3 will start from
   - `CleaningStats.kt`: `cleaningStats()`, one `groupBy(source_year)` holding every count. Decisions D1–D6 are in `roadmap/02-M1-CLEANING.md` and README → M1.
+- `demand/` (M2):
+  - `TemporalDemand.kt`: `temporalDemand(zones)`, the M2 story: borough join, trip times, then one `groupBy(pickup_borough, day_of_week, hour_of_day)` with `trip_count`, `avg_fare`, `avg_duration_min` and `avg_distance`
+  - `WithPickupBorough.kt`: `withPickupBorough(zones)`, a plain inner join on `PULocationID` = `LocationID` with no hint (the baseline). The zones are a parameter, so a later join hint stays visible in `Pipeline.kt`.
+  - `WithTripTimes.kt`: `withTripTimes()` adds `day_of_week` (`dayofweek`: 1 = Sunday … 7 = Saturday), `hour_of_day` and `duration_min`. Decision D7: the duration is NTZ minus NTZ, not `timestamp_diff`, which would apply the session time zone (README → M2).
+  - `DemandColumns.kt`: M2's column names as constants
 - `SparkSessions.kt`: uses `local[*]` unless `spark-submit` already set `spark.master`, and sets no other `spark.*` config
 - `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**
-- Planned packages: `.demand` (M2), `.zones` (M3), `.profiling` (the Lab 3 profiler port, roadmap 01 Part B)
+- Planned packages: `.zones` (M3), `.profiling` (the Lab 3 profiler port, roadmap 01 Part B)
 - Build: `build.gradle.kts` (Spark 4.2.1 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
 - Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
 - Cluster: `docker/docker-compose.yml` (standalone Spark 4.2.1 / Java 21; `data/` → `/data` read-only, `build/libs/` → `/jars`, `output/` → `/output`)
@@ -77,7 +83,7 @@ runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► clean
 - `make check` = lint + build + test. CI and the `pre-push` hook run the same thing.
 - `SparkSessionTest` runs a local Spark job with a shuffle. It guards the build setup (Spark on the classpath, Java 21, module flags).
 - `cli/ParseArgsTest`, `cli/MonthRangeTest` and `ingest/TripFilesTest` cover argument parsing and file resolution without Spark, so they run in milliseconds.
-- `ingest/EnforceSchemaTest` and `clean/CleaningTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row.
+- `ingest/EnforceSchemaTest`, `clean/CleaningTest` and `demand/TemporalDemandTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row. The demand fixture has six trips across two boroughs with hand-checked counts and means, plus two time-zone tests: a trip in Lisbon's DST overlap hour pins D7, and an Asia/Tokyo session shows that `hour`/`dayofweek` ignore the session zone.
 - Inside an extension on `Dataset<Row>`, a bare `col(...)` resolves to the receiver's member `Dataset.col`, not `functions.col`. Build columns in top-level helpers instead.
 - Smoke check (verified 2026-11-05): `--years 2025-01` reads 3,475,226 trips both locally and on Docker. `--fraction 0.1` gives 347,645, the same on every run.
 - TODO as the operations land: unit tests per operation, and a correctness check on a one-month sample (row counts plus an `except`-diff in both directions). Every optimisation must keep results identical.
