@@ -82,7 +82,7 @@ make run ARGS="--input data --output output --years 2025-01"   # writes output/m
 ### Pipeline arguments
 
 ```
-shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <list>]
+shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <list>] [--run-id <id> [--runs-dir <dir>] [--git-sha <sha>]]
 ```
 
 | Flag | Required | Default | Meaning |
@@ -92,8 +92,30 @@ shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <lis
 | `--years` | no | `2025` | `YYYY` (one year), `YYYY-YYYY` (whole years), or `YYYY-MM` (one month). 2011 onwards, because 2009–2010 have no zone IDs. |
 | `--fraction` | no | `1.0` | share of trips to keep, 0 < f ≤ 1, sampled with a fixed seed (42), so the same fraction keeps the same rows every run |
 | `--ops` | no | `m1,m2,m3` | which results to write, comma-separated |
+| `--run-id` | no | none | turns profiling on: `<local\|docker\|di>-<yyyymmdd>-<nn>`, e.g. `local-20261105-01`. Never reuse one: a run folder that already exists exits with code 2. |
+| `--runs-dir` | no | `experiments/runs` | where run folders go (`/runs` in Docker). Only with `--run-id`. |
+| `--git-sha` | no | none | the commit that ran, recorded in `run.json`: pass `$(git rev-parse --short HEAD)`. Only with `--run-id`. |
 
-Exit codes: `0` success, `2` bad arguments or missing input files (checked before Spark starts), `1` a failure while Spark runs.
+Exit codes: `0` success, `2` bad arguments, missing input files or a reused run id (checked before Spark starts), `1` a failure while Spark runs.
+
+### Profiling
+
+With `--run-id`, each operation's write runs inside `profiler.profile("<op>") { … }`. A `SparkListener` records every job, stage and task of that block, using the metric names of the Lab 3 profiler (roadmap 01 B3) plus per-stage task skew. Without `--run-id`, the block just runs, so the measured code path is the same either way. Everything lands in `<runs-dir>/<run-id>/`:
+
+| File | What |
+|---|---|
+| `run.json` | `run_id`, `git_sha`, `env`, `master`, `spark_version`, `args`, `spark_conf` (explicitly set only), `started_utc`, and `runs`: one entry per operation with `wall_time_s`, `num_jobs`/`num_stages`/`num_tasks`, run and CPU time, input/output/shuffle bytes, spill, GC time, and its stages |
+| `stages.json` | every completed stage, flat, tagged with its `profile`: duration, the same byte/time/spill fields, `task_ms_median`, `task_ms_max`, `skew_ratio` (max / median; ≥ 10 is skew) |
+| `plans/<op>.txt` | the physical plan after the write ran, so AQE's real choices show (`isFinalPlan=true`) |
+| `eventlog/` | Spark's event log, for the History Server and DAG screenshots (gitignored) |
+
+The run also prints one summary line per operation: `profile | wall s | stages | tasks | shuffle R | shuffle W | spill | max skew`. Skipped stages (shuffle output reused) aren't counted, which matches the Spark UI's Completed Stages.
+
+```sh
+make run ARGS="--input data --output output --years 2025-01 --run-id local-20261105-01 --git-sha $(git rev-parse --short HEAD)"
+```
+
+On Docker, add `--runs-dir /runs` (the master mounts `experiments/runs/` there). How runs are set up and compared is in roadmap 01 Part C, and every run gets a row in [`experiments/LOG.md`](experiments/LOG.md).
 
 ### M1: ingestion and cleaning
 
@@ -128,10 +150,14 @@ docker compose -f docker/docker-compose.yml up -d --scale spark-worker=2  # mast
 docker compose -f docker/docker-compose.yml exec spark-master /opt/spark/bin/spark-submit \
   --class com.radeshgovind.MainKt --master spark://spark-master:7077 \
   /jars/shard-all.jar --input /data --output /output --years 2025-01
+docker compose -f docker/docker-compose.yml exec spark-master /opt/spark/bin/spark-submit \
+  --class com.radeshgovind.MainKt --master spark://spark-master:7077 \
+  /jars/shard-all.jar --input /data --output /output --years 2025-01 \
+  --runs-dir /runs --run-id docker-20261105-01 --git-sha $(git rev-parse --short HEAD)   # profiled
 docker compose -f docker/docker-compose.yml down                          # stop; nothing is lost
 ```
 
-- **Mounts:** `data/` → `/data` (read-only, on master and workers), `build/libs/` → `/jars`, `output/` → `/output`.
+- **Mounts:** `data/` → `/data` (read-only, on master and workers), `build/libs/` → `/jars`, `output/` → `/output`, and `experiments/runs/` → `/runs` (master only, because the driver writes the run folder). Recreate the containers after pulling this mount: `up -d --force-recreate --scale spark-worker=2`.
 - **Where things run:** the driver runs in the master container (client mode), and its job UI is at http://localhost:4040.
 - **Changing the cluster size:** re-run `up -d` with another `--scale spark-worker=N`.
 - **If a submit hangs on `Initial job has not accepted any resources`,** the master has lost its workers. This happens when the Mac sleeps: OrbStack pauses the containers, the master drops the workers after 60 s without a heartbeat, and they never register again. The master UI shows 0 workers, and its log says `Got heartbeat from unregistered worker`. Fix it with `down`, then `up -d --scale spark-worker=2`.
@@ -158,10 +184,12 @@ How to reproduce each experiment: every run is logged with its exact arguments i
 
 All environments are recorded in the `experiments/LOG.md` environment table.
 
-**Non-default `spark.*` properties:** none yet. List each one here with the optimisation (OPT id) it belongs to.
+**Non-default `spark.*` properties:** none for tuning yet. List each one here with the optimisation (OPT id) it belongs to.
 
 | Property | Value | Why (OPT id) |
 |---|---|---|
+| `spark.eventLog.enabled` | `true`, **on only for profiled runs** (`--run-id`) | instrumentation, not tuning: the History Server and DAG screenshots |
+| `spark.eventLog.dir` | `<runs-dir>/<run-id>/eventlog` (absolute), **on only for profiled runs** | same |
 
 ## Contributing
 

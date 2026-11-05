@@ -29,21 +29,23 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-Current state: **M1 done (Phase 1b).** Argument parsing, input checks, trip loading and M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`) run end to end. M2 and M3 don't exist yet. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md`, `01-SKELETON-AND-PROFILER.md`, `02-M1-CLEANING.md`).
+Current state: **M1 done (Phase 1b), profiler built (Phase 2, roadmap 01 Part B).** Argument parsing, input checks, trip loading and M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`) run end to end, and `--run-id` profiles each operation's write into `experiments/runs/<run-id>/`. M2 and M3 don't exist yet. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md`, `01-SKELETON-AND-PROFILER.md`, `02-M1-CLEANING.md`).
 
 Data flow, in call order (all under `src/main/kotlin/com/radeshgovind/`):
 
 ```
-Main.kt  parseArgs ─► findTripFiles ─► createSparkSession().use { runPipeline(...) }
-            │              │
-            └─ Invalid ────┴─ Missing  ─► stderr + exit 2 (before Spark starts)
+Main.kt  parseArgs ─► findTripFiles ─► [--run-id: prepareRunDir] ─► createSparkSession(eventLogDir).use { runPipeline(...) }
+            │              │                    │
+            └─ Invalid ────┴─ Missing ──────────┴─ run dir exists ─► stderr + exit 2 (before Spark starts)
 
-runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► cleaningStats ─► <output>/m1/          (M1)
-                                                           └─► [removeInvalidTrips ─► M2 / M3 / O*]   (bracketed part: not wired yet)
+runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
+              loadTrips(files, fraction) ─► enforceSchema ─┬─► profile("m1") { cleaningStats ─► <output>/m1/ }   (M1)
+                                                           └─► [removeInvalidTrips ─► profile("m2"/"m3") { … }]  (bracketed part: not wired yet)
+              profiler.finish()  ─► <runs-dir>/<run-id>/run.json, stages.json, plans/<op>.txt + summary table
 ```
 
 - `Main.kt`: `com.radeshgovind.MainKt`, the application and jar entry point. It owns the exit codes: 0 ok, 2 bad arguments or missing files, 1 a failure inside Spark.
-- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`)
+- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`), `ProfilingArgs.kt` (`--run-id`, `--runs-dir`, `--git-sha`; null when profiling is off)
 - `ingest/`:
   - `TripFiles.kt`: the exact Parquet path for each month, with no globs, as `Found` or `Missing`
   - `LoadTrips.kt`: reads those files, adds `source_year`/`source_month` from each file's name (`_metadata.file_path`, right on the scan), then samples with a fixed seed (42) when `--fraction` < 1
@@ -54,12 +56,19 @@ runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► clean
   - `InvalidTrip.kt`: an enum of the five criteria, each a never-null `condition()` plus its stat column name. The same list drives the filter and the stats.
   - `RemoveInvalidTrips.kt`: `removeInvalidTrips()`, the clean trips that M2 and M3 will start from
   - `CleaningStats.kt`: `cleaningStats()`, one `groupBy(source_year)` holding every count. Decisions D1–D6 are in `roadmap/02-M1-CLEANING.md` and README → M1.
-- `SparkSessions.kt`: uses `local[*]` unless `spark-submit` already set `spark.master`, and sets no other `spark.*` config
-- `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**
-- Planned packages: `.demand` (M2), `.zones` (M3), `.profiling` (the Lab 3 profiler port, roadmap 01 Part B)
+- `profiling/` (roadmap 01 Part B; output layout in README → Profiling):
+  - `SparkProfiler.kt`: `Profiler` (`profile(name) { … }`, `finish()`), `NoProfiler` (just runs the block) and `SparkProfiler`. Each block runs under its own `setJobGroup`; the listener bus is drained (`listenerBus().waitUntilEmpty`) before and after it, because listener events are asynchronous. **One action per block.**
+  - `MetricsListener.kt`: the `SparkListener`: job → group and stage ids, successful task durations per stage, completed stages
+  - `StageMetrics.kt` / `ProfiledRun.kt`: the B3 metrics per stage (with `task_ms_median`, `task_ms_max`, `skew_ratio`) and per block
+  - `PlanCapture.kt`: a `QueryExecutionListener` keeping each action's final (post-AQE) physical plan
+  - `RunReport.kt`: writes `run.json`, `stages.json` and `plans/` with Jackson (from Spark's classpath, snake_case), prints the summary table, and names the `eventlog/` folder
+  - `RunId.kt`: `^(local|docker|di)-\d{8}-\d{2}$`
+- `SparkSessions.kt`: uses `local[*]` unless `spark-submit` already set `spark.master`. The only other `spark.*` config is the event log, and only for profiled runs.
+- `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**. Each operation's write is wrapped in `profiler.profile("<op>") { … }`; read-backs and prints stay outside the block.
+- Planned packages: `.demand` (M2), `.zones` (M3)
 - Build: `build.gradle.kts` (Spark 4.2.1 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
 - Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
-- Cluster: `docker/docker-compose.yml` (standalone Spark 4.2.1 / Java 21; `data/` → `/data` read-only, `build/libs/` → `/jars`, `output/` → `/output`)
+- Cluster: `docker/docker-compose.yml` (standalone Spark 4.2.1 / Java 21; `data/` → `/data` read-only, `build/libs/` → `/jars`, `output/` → `/output`, `experiments/runs/` → `/runs` on the master only)
 
 ## Code Conventions
 
@@ -78,6 +87,7 @@ runPipeline:  loadTrips(files, fraction) ─► enforceSchema ─┬─► clean
 - `SparkSessionTest` runs a local Spark job with a shuffle. It guards the build setup (Spark on the classpath, Java 21, module flags).
 - `cli/ParseArgsTest`, `cli/MonthRangeTest` and `ingest/TripFilesTest` cover argument parsing and file resolution without Spark, so they run in milliseconds.
 - `ingest/EnforceSchemaTest` and `clean/CleaningTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row.
+- `profiling/SparkProfilerTest` covers roadmap 01 B6: a shuffle job (≥ 2 stages, shuffle R/W > 0), a job without a shuffle (`collect()`; `count()` has an `Exchange SinglePartition`), two blocks keeping their own stages, and the files written (parsed back with Jackson).
 - Inside an extension on `Dataset<Row>`, a bare `col(...)` resolves to the receiver's member `Dataset.col`, not `functions.col`. Build columns in top-level helpers instead.
 - Smoke check (verified 2026-11-05): `--years 2025-01` reads 3,475,226 trips both locally and on Docker. `--fraction 0.1` gives 347,645, the same on every run.
 - TODO as the operations land: unit tests per operation, and a correctness check on a one-month sample (row counts plus an `except`-diff in both directions). Every optimisation must keep results identical.
