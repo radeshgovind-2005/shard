@@ -1,0 +1,74 @@
+## local 2025-01
+26/11/05 13:54:04 INFO InMemoryFileIndex: It took 10 ms to list leaf files for 1 paths.
+26/11/05 13:54:05 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 0 (MapPartitionsRDD[1] at parquet at LoadTrips.kt:17)
+26/11/05 13:54:05 INFO DAGScheduler: ResultStage 0 (parquet at LoadTrips.kt:17) finished in 528 ms
+26/11/05 13:54:05 INFO DAGScheduler: Job 0 finished: parquet at LoadTrips.kt:17, took 545.978542 ms
+26/11/05 13:54:06 INFO DAGScheduler: Submitting 10 missing tasks from ShuffleMapStage 1 (MapPartitionsRDD[5] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:54:08 INFO DAGScheduler: ShuffleMapStage 1 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 1890 ms
+26/11/05 13:54:08 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 3 (MapPartitionsRDD[8] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:54:08 INFO ShuffleBlockFetcherIterator: Getting 4 (424.0 B) non-empty blocks including 4 (424.0 B) local and 0 (0.0 B) host-local and 0 (0.0 B) push-merged-local and 0 (0.0 B) remote blocks
+26/11/05 13:54:08 INFO DAGScheduler: ResultStage 3 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 493 ms
+26/11/05 13:54:08 INFO DAGScheduler: Job 2 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 497.400041 ms
+26/11/05 13:54:08 INFO InMemoryFileIndex: It took 1 ms to list leaf files for 1 paths.
+26/11/05 13:54:09 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 4 (MapPartitionsRDD[10] at parquet at Pipeline.kt:43)
+26/11/05 13:54:09 INFO DAGScheduler: ResultStage 4 (parquet at Pipeline.kt:43) finished in 24 ms
+26/11/05 13:54:09 INFO DAGScheduler: Job 3 finished: parquet at Pipeline.kt:43, took 26.201458 ms
+26/11/05 13:54:09 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 5 (MapPartitionsRDD[15] at show at Pipeline.kt:43)
+26/11/05 13:54:09 INFO DAGScheduler: ResultStage 5 (show at Pipeline.kt:43) finished in 40 ms
+26/11/05 13:54:09 INFO DAGScheduler: Job 4 finished: show at Pipeline.kt:43, took 41.175834 ms
+26/11/05 13:54:09 INFO InMemoryFileIndex: It took 0 ms to list leaf files for 1 paths.
+26/11/05 13:54:09 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 6 (MapPartitionsRDD[19] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:54:09 INFO DAGScheduler: ResultStage 6 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 65 ms
+26/11/05 13:54:09 INFO DAGScheduler: Job 5 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 66.983 ms
+26/11/05 13:54:09 INFO DAGScheduler: Submitting 10 missing tasks from ShuffleMapStage 7 (MapPartitionsRDD[23] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:54:10 INFO DAGScheduler: ShuffleMapStage 7 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 990 ms
+26/11/05 13:54:10 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 9 (MapPartitionsRDD[26] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:54:10 INFO ShuffleBlockFetcherIterator: Getting 4 (214.9 KiB) non-empty blocks including 4 (214.9 KiB) local and 0 (0.0 B) host-local and 0 (0.0 B) push-merged-local and 0 (0.0 B) remote blocks
+26/11/05 13:54:11 INFO DAGScheduler: ResultStage 9 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 330 ms
+26/11/05 13:54:11 INFO DAGScheduler: Job 7 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 334.767416 ms
+26/11/05 13:54:11 INFO InMemoryFileIndex: It took 2 ms to list leaf files for 1 paths.
+26/11/05 13:54:11 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 10 (MapPartitionsRDD[28] at parquet at Pipeline.kt:56)
+26/11/05 13:54:11 INFO DAGScheduler: ResultStage 10 (parquet at Pipeline.kt:56) finished in 19 ms
+26/11/05 13:54:11 INFO DAGScheduler: Job 8 finished: parquet at Pipeline.kt:56, took 19.694167 ms
+26/11/05 13:54:11 INFO DAGScheduler: Submitting 6 missing tasks from ShuffleMapStage 11 (MapPartitionsRDD[32] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:54:11 INFO DAGScheduler: ShuffleMapStage 11 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 68 ms
+26/11/05 13:54:11 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 13 (MapPartitionsRDD[36] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:54:11 INFO ShuffleBlockFetcherIterator: Getting 6 (978.0 B) non-empty blocks including 6 (978.0 B) local and 0 (0.0 B) host-local and 0 (0.0 B) push-merged-local and 0 (0.0 B) remote blocks
+26/11/05 13:54:11 INFO DAGScheduler: ResultStage 13 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 24 ms
+26/11/05 13:54:11 INFO DAGScheduler: Job 10 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 25.5255 ms
+
+## docker 2025-01
+26/11/05 13:55:10 INFO InMemoryFileIndex: It took 15 ms to list leaf files for 1 paths.
+26/11/05 13:55:10 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 0 (MapPartitionsRDD[1] at parquet at LoadTrips.kt:17)
+26/11/05 13:55:10 INFO DAGScheduler: ResultStage 0 (parquet at LoadTrips.kt:17) finished in 597 ms
+26/11/05 13:55:10 INFO DAGScheduler: Job 0 finished: parquet at LoadTrips.kt:17, took 639.708669 ms
+26/11/05 13:55:12 INFO DAGScheduler: Submitting 4 missing tasks from ShuffleMapStage 1 (MapPartitionsRDD[5] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:55:14 INFO DAGScheduler: ShuffleMapStage 1 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 2434 ms
+26/11/05 13:55:14 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 3 (MapPartitionsRDD[8] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:55:15 INFO DAGScheduler: ResultStage 3 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 364 ms
+26/11/05 13:55:15 INFO DAGScheduler: Job 2 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 404.448454 ms
+26/11/05 13:55:15 INFO InMemoryFileIndex: It took 5 ms to list leaf files for 1 paths.
+26/11/05 13:55:15 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 4 (MapPartitionsRDD[10] at parquet at Pipeline.kt:43)
+26/11/05 13:55:15 INFO DAGScheduler: ResultStage 4 (parquet at Pipeline.kt:43) finished in 110 ms
+26/11/05 13:55:15 INFO DAGScheduler: Job 3 finished: parquet at Pipeline.kt:43, took 112.688285 ms
+26/11/05 13:55:15 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 5 (MapPartitionsRDD[15] at show at Pipeline.kt:43)
+26/11/05 13:55:15 INFO DAGScheduler: ResultStage 5 (show at Pipeline.kt:43) finished in 107 ms
+26/11/05 13:55:15 INFO DAGScheduler: Job 4 finished: show at Pipeline.kt:43, took 111.039497 ms
+26/11/05 13:55:15 INFO InMemoryFileIndex: It took 0 ms to list leaf files for 1 paths.
+26/11/05 13:55:15 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 6 (MapPartitionsRDD[19] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:55:15 INFO DAGScheduler: ResultStage 6 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 118 ms
+26/11/05 13:55:15 INFO DAGScheduler: Job 5 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 121.516515 ms
+26/11/05 13:55:16 INFO DAGScheduler: Submitting 4 missing tasks from ShuffleMapStage 7 (MapPartitionsRDD[23] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:55:17 INFO DAGScheduler: ShuffleMapStage 7 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 1431 ms
+26/11/05 13:55:17 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 9 (MapPartitionsRDD[26] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:55:18 INFO DAGScheduler: ResultStage 9 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 398 ms
+26/11/05 13:55:18 INFO DAGScheduler: Job 7 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 407.661072 ms
+26/11/05 13:55:18 INFO InMemoryFileIndex: It took 3 ms to list leaf files for 1 paths.
+26/11/05 13:55:18 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 10 (MapPartitionsRDD[28] at parquet at Pipeline.kt:55)
+26/11/05 13:55:18 INFO DAGScheduler: ResultStage 10 (parquet at Pipeline.kt:55) finished in 36 ms
+26/11/05 13:55:18 INFO DAGScheduler: Job 8 finished: parquet at Pipeline.kt:55, took 38.220163 ms
+26/11/05 13:55:18 INFO DAGScheduler: Submitting 3 missing tasks from ShuffleMapStage 11 (MapPartitionsRDD[32] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:55:18 INFO DAGScheduler: ShuffleMapStage 11 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 164 ms
+26/11/05 13:55:18 INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 13 (MapPartitionsRDD[36] at $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768)
+26/11/05 13:55:18 INFO DAGScheduler: ResultStage 13 ($anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768) finished in 69 ms
+26/11/05 13:55:18 INFO DAGScheduler: Job 10 finished: $anonfun$withThreadLocalCaptured$1 at CompletableFuture.java:1768, took 74.769455 ms

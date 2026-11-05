@@ -1,0 +1,21 @@
+26/11/05 13:55:07 INFO SparkContext: Running Spark version 4.2.1
+26/11/05 13:55:07 INFO SparkContext: Java version 21.0.13+9-LTS
+26/11/05 13:55:08 INFO StandaloneSchedulerBackend: Granted executor ID app-20261105135508-0001/0 on hostPort 192.168.107.4:37267 with 2 core(s), 1024.0 MiB RAM
+26/11/05 13:55:08 INFO StandaloneSchedulerBackend: Granted executor ID app-20261105135508-0001/1 on hostPort 192.168.107.3:45603 with 2 core(s), 1024.0 MiB RAM
+
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|source_year|raw_trips|bad_fare|bad_distance|bad_passenger_count|bad_time_order|bad_zone|removed_trips|kept_trips|null_passenger_count|
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|2025       |3475226  |145516  |90893       |24674              |2051          |28357   |271401       |3203825   |540149              |
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
++--------------+----------+----+
+|pickup_borough|trip_count|rows|
++--------------+----------+----+
+|Bronx         |12735     |168 |
+|Brooklyn      |55321     |168 |
+|EWR           |61        |43  |
+|Manhattan     |2874748   |168 |
+|Queens        |260761    |168 |
+|Staten Island |199       |100 |
+|NULL          |3203825   |815 |
++--------------+----------+----+

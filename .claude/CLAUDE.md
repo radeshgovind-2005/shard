@@ -19,6 +19,7 @@
 | `roadmap/` | Work plan: `00-ROADMAP.md` (phases, timeline), `01-SKELETON-AND-PROFILER.md` (skeleton, profiler, baseline protocol) |
 | `experiments/LOG.md` | Environments, runs, hypotheses, optimisations: the source of every reported number |
 | `experiments/runs/<run-id>/` | Profiler output: `run.json`, `stages.json`, `plans/` (event logs gitignored); README → Profiling |
+| `experiments/observations/<op>-<date>/` | Raw evidence behind LOG → Observations (plans, console tables, diffs); not measurements, no run-id |
 | `experiments/analysis/` | CSVs for report charts |
 | `docs/Project_Description.md` | Assignment spec |
 | `docs/lab-inputs.md` | Inputs from labs/course: Docker Spark and the Lab 3 profiler found; DI cluster and submission still pending |

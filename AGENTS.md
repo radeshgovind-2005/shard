@@ -29,7 +29,7 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-Current state: **M1 done (Phase 1b), profiler built (Phase 2, roadmap 01 Part B).** Argument parsing, input checks, trip loading and M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`) run end to end, and `--run-id` profiles each operation's write into `experiments/runs/<run-id>/`. M2 and M3 don't exist yet. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md`, `01-SKELETON-AND-PROFILER.md`, `02-M1-CLEANING.md`).
+Current state: **M2 done (Phase 1c), profiler built (Phase 2, roadmap 01 Part B).** Argument parsing, input checks, trip loading, M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`) and M2 (temporal demand per borough, day and hour, written to `<output>/m2/`) run end to end, and `--run-id` profiles each operation's write into `experiments/runs/<run-id>/`. M3 doesn't exist yet. The plan for the next pieces is in `roadmap/` (`00-ROADMAP.md` §1d, `01-SKELETON-AND-PROFILER.md`, `02-M1-CLEANING.md`).
 
 Data flow, in call order (all under `src/main/kotlin/com/radeshgovind/`):
 
@@ -39,8 +39,9 @@ Main.kt  parseArgs ─► findTripFiles ─► [--run-id: prepareRunDir] ─► 
             └─ Invalid ────┴─ Missing ──────────┴─ run dir exists ─► stderr + exit 2 (before Spark starts)
 
 runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
-              loadTrips(files, fraction) ─► enforceSchema ─┬─► profile("m1") { cleaningStats ─► <output>/m1/ }   (M1)
-                                                           └─► [removeInvalidTrips ─► profile("m2"/"m3") { … }]  (bracketed part: not wired yet)
+              loadTrips(files, fraction) ─► enforceSchema ─┬─► profile("m1") { cleaningStats ─► <output>/m1/ }                     (M1)
+                                                           └─► removeInvalidTrips ─┬─► profile("m2") { temporalDemand(loadZones) ─► <output>/m2/ }  (M2)
+                                                                                   └─► [M3 / O*]                  (not wired yet)
               profiler.finish()  ─► <runs-dir>/<run-id>/run.json, stages.json, plans/<op>.txt + summary table
 ```
 
@@ -56,6 +57,11 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
   - `InvalidTrip.kt`: an enum of the five criteria, each a never-null `condition()` plus its stat column name. The same list drives the filter and the stats.
   - `RemoveInvalidTrips.kt`: `removeInvalidTrips()`, the clean trips that M2 and M3 will start from
   - `CleaningStats.kt`: `cleaningStats()`, one `groupBy(source_year)` holding every count. Decisions D1–D6 are in `roadmap/02-M1-CLEANING.md` and README → M1.
+- `demand/` (M2):
+  - `TemporalDemand.kt`: `temporalDemand(zones)`, the M2 story: borough join, trip times, then one `groupBy(pickup_borough, day_of_week, hour_of_day)` with `trip_count`, `avg_fare`, `avg_duration_min` and `avg_distance`
+  - `WithPickupBorough.kt`: `withPickupBorough(zones)`, a plain inner join on `PULocationID` = `LocationID` with no hint (the baseline). The zones are a parameter, so a later join hint stays visible in `Pipeline.kt`.
+  - `WithTripTimes.kt`: `withTripTimes()` adds `day_of_week` (`dayofweek`: 1 = Sunday … 7 = Saturday), `hour_of_day` and `duration_min`. Decision D7: the duration is NTZ minus NTZ, not `timestamp_diff`, which would apply the session time zone (README → M2).
+  - `DemandColumns.kt`: M2's column names as constants
 - `profiling/` (roadmap 01 Part B; output layout in README → Profiling):
   - `SparkProfiler.kt`: `Profiler` (`profile(name) { … }`, `finish()`), `NoProfiler` (just runs the block) and `SparkProfiler`. Each block runs under its own `setJobGroup`; the listener bus is drained (`listenerBus().waitUntilEmpty`) before and after it, because listener events are asynchronous. **One action per block.**
   - `MetricsListener.kt`: the `SparkListener`: job → group and stage ids, successful task durations per stage, completed stages
@@ -65,7 +71,7 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
   - `RunId.kt`: `^(local|docker|di)-\d{8}-\d{2}$`
 - `SparkSessions.kt`: uses `local[*]` unless `spark-submit` already set `spark.master`. The only other `spark.*` config is the event log, and only for profiled runs.
 - `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**. Each operation's write is wrapped in `profiler.profile("<op>") { … }`; read-backs and prints stay outside the block.
-- Planned packages: `.demand` (M2), `.zones` (M3)
+- Planned packages: `.zones` (M3)
 - Build: `build.gradle.kts` (Spark 4.2.1 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
 - Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
 - Cluster: `docker/docker-compose.yml` (standalone Spark 4.2.1 / Java 21; `data/` → `/data` read-only, `build/libs/` → `/jars`, `output/` → `/output`, `experiments/runs/` → `/runs` on the master only)
@@ -86,7 +92,7 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
 - `make check` = lint + build + test. CI and the `pre-push` hook run the same thing.
 - `SparkSessionTest` runs a local Spark job with a shuffle. It guards the build setup (Spark on the classpath, Java 21, module flags).
 - `cli/ParseArgsTest`, `cli/MonthRangeTest` and `ingest/TripFilesTest` cover argument parsing and file resolution without Spark, so they run in milliseconds.
-- `ingest/EnforceSchemaTest` and `clean/CleaningTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row.
+- `ingest/EnforceSchemaTest`, `clean/CleaningTest` and `demand/TemporalDemandTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row. The demand fixture has six trips across two boroughs with hand-checked counts and means, plus two time-zone tests: a trip in Lisbon's DST overlap hour pins D7, and an Asia/Tokyo session shows that `hour`/`dayofweek` ignore the session zone.
 - `profiling/SparkProfilerTest` covers roadmap 01 B6: a shuffle job (≥ 2 stages, shuffle R/W > 0), a job without a shuffle (`collect()`; `count()` has an `Exchange SinglePartition`), two blocks keeping their own stages, and the files written (parsed back with Jackson).
 - Inside an extension on `Dataset<Row>`, a bare `col(...)` resolves to the receiver's member `Dataset.col`, not `functions.col`. Build columns in top-level helpers instead.
 - Smoke check (verified 2026-11-05): `--years 2025-01` reads 3,475,226 trips both locally and on Docker. `--fraction 0.1` gives 347,645, the same on every run.

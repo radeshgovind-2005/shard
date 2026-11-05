@@ -1,0 +1,88 @@
+== Physical Plan ==
+AdaptiveSparkPlan (14)
++- HashAggregate (13)
+   +- Exchange (12)
+      +- HashAggregate (11)
+         +- Project (10)
+            +- BroadcastHashJoin Inner BuildRight (9)
+               :- Project (4)
+               :  +- Filter (3)
+               :     +- Project (2)
+               :        +- Scan parquet  (1)
+               +- BroadcastExchange (8)
+                  +- Project (7)
+                     +- Filter (6)
+                        +- Scan csv  (5)
+
+
+(1) Scan parquet 
+Output [14]: [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, passenger_count#3L, trip_distance#4, PULocationID#7, DOLocationID#8, fare_amount#10, _tmp_metadata_row_index#218L, file_path#212, file_name#213, file_size#214L, file_block_start#215L, file_block_length#216L, file_modification_time#217]
+Batched: true
+Location: InMemoryFileIndex [file:<shard>/data/trips/yellow_tripdata_2025-01.parquet]
+PushedFilters: [IsNotNull(PULocationID)]
+ReadSchema: struct<tpep_pickup_datetime:timestamp_ntz,tpep_dropoff_datetime:timestamp_ntz,passenger_count:bigint,trip_distance:double,PULocationID:int,DOLocationID:int,fare_amount:double,_tmp_metadata_row_index:bigint>
+
+(2) Project
+Output [8]: [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, passenger_count#3L, trip_distance#4, PULocationID#7, DOLocationID#8, fare_amount#10, knownnotnull(named_struct(file_path, file_path#212, file_name, file_name#213, file_size, file_size#214L, file_block_start, file_block_start#215L, file_block_length, file_block_length#216L, file_modification_time, file_modification_time#217, row_index, row_index#218L)) AS _metadata#22]
+Input [14]: [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, passenger_count#3L, trip_distance#4, PULocationID#7, DOLocationID#8, fare_amount#10, _tmp_metadata_row_index#218L, file_path#212, file_name#213, file_size#214L, file_block_start#215L, file_block_length#216L, file_modification_time#217]
+
+(3) Filter
+Input [8]: [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, passenger_count#3L, trip_distance#4, PULocationID#7, DOLocationID#8, fare_amount#10, _metadata#22]
+Condition : ((((((NOT coalesce((isnull(fare_amount#10) OR (fare_amount#10 <= 0.0)), false) AND NOT coalesce((isnull(trip_distance#4) OR (trip_distance#4 <= 0.0)), false)) AND NOT coalesce(((cast(passenger_count#3L as int) = 0) OR (cast(passenger_count#3L as int) > 6)), false)) AND NOT coalesce(((isnull(tpep_pickup_datetime#1) OR isnull(tpep_dropoff_datetime#2)) OR (tpep_dropoff_datetime#2 <= tpep_pickup_datetime#1)), false)) AND NOT coalesce((isnull(PULocationID#7) OR ((PULocationID#7 < 1) OR (PULocationID#7 > 263))), false)) AND NOT coalesce((isnull(DOLocationID#8) OR ((DOLocationID#8 < 1) OR (DOLocationID#8 > 263))), false)) AND isnotnull(PULocationID#7))
+
+(4) Project
+Output [5]: [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, PULocationID#7, trip_distance#4, fare_amount#10]
+Input [8]: [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, passenger_count#3L, trip_distance#4, PULocationID#7, DOLocationID#8, fare_amount#10, _metadata#22]
+
+(5) Scan csv 
+Output [2]: [LocationID#163, Borough#164]
+Batched: false
+Location: InMemoryFileIndex [file:<shard>/data/taxi_zone_lookup.csv]
+PushedFilters: [IsNotNull(LocationID)]
+ReadSchema: struct<LocationID:int,Borough:string>
+
+(6) Filter
+Input [2]: [LocationID#163, Borough#164]
+Condition : (NOT coalesce((isnull(LocationID#163) OR ((LocationID#163 < 1) OR (LocationID#163 > 263))), false) AND isnotnull(LocationID#163))
+
+(7) Project
+Output [2]: [LocationID#163, Borough#164 AS pickup_borough#167]
+Input [2]: [LocationID#163, Borough#164]
+
+(8) BroadcastExchange
+Input [2]: [LocationID#163, pickup_borough#167]
+Arguments: HashedRelationBroadcastMode(List(cast(input[0, int, true] as bigint)),false), [plan_id=137]
+
+(9) BroadcastHashJoin
+Left keys [1]: [PULocationID#7]
+Right keys [1]: [LocationID#163]
+Join type: Inner
+Join condition: None
+
+(10) Project
+Output [6]: [trip_distance#4, fare_amount#10, pickup_borough#167, dayofweek(cast(tpep_pickup_datetime#1 as date)) AS day_of_week#169, hour(tpep_pickup_datetime#1, Some(Europe/Lisbon)) AS hour_of_day#170, (cast(cast(cast((tpep_dropoff_datetime#2 - tpep_pickup_datetime#1) as interval second) as decimal(18,6)) as double) / 60.0) AS duration_min#171]
+Input [7]: [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, PULocationID#7, trip_distance#4, fare_amount#10, LocationID#163, pickup_borough#167]
+
+(11) HashAggregate
+Input [6]: [trip_distance#4, fare_amount#10, pickup_borough#167, day_of_week#169, hour_of_day#170, duration_min#171]
+Keys [3]: [pickup_borough#167, day_of_week#169, hour_of_day#170]
+Functions [4]: [partial_count(1), partial_avg(fare_amount#10), partial_avg(duration_min#171), partial_avg(trip_distance#4)]
+Aggregate Attributes [7]: [count#198L, sum#199, count#200L, sum#201, count#202L, sum#203, count#204L]
+Results [10]: [pickup_borough#167, day_of_week#169, hour_of_day#170, count#205L, sum#206, count#207L, sum#208, count#209L, sum#210, count#211L]
+
+(12) Exchange
+Input [10]: [pickup_borough#167, day_of_week#169, hour_of_day#170, count#205L, sum#206, count#207L, sum#208, count#209L, sum#210, count#211L]
+Arguments: hashpartitioning(pickup_borough#167, day_of_week#169, hour_of_day#170, 200), ENSURE_REQUIREMENTS, [plan_id=142]
+
+(13) HashAggregate
+Input [10]: [pickup_borough#167, day_of_week#169, hour_of_day#170, count#205L, sum#206, count#207L, sum#208, count#209L, sum#210, count#211L]
+Keys [3]: [pickup_borough#167, day_of_week#169, hour_of_day#170]
+Functions [4]: [count(1), avg(fare_amount#10), avg(duration_min#171), avg(trip_distance#4)]
+Aggregate Attributes [4]: [count(1)#194L, avg(fare_amount#10)#195, avg(duration_min#171)#196, avg(trip_distance#4)#197]
+Results [7]: [pickup_borough#167, day_of_week#169, hour_of_day#170, count(1)#194L AS trip_count#172L, avg(fare_amount#10)#195 AS avg_fare#173, avg(duration_min#171)#196 AS avg_duration_min#174, avg(trip_distance#4)#197 AS avg_distance#175]
+
+(14) AdaptiveSparkPlan
+Output [7]: [pickup_borough#167, day_of_week#169, hour_of_day#170, trip_count#172L, avg_fare#173, avg_duration_min#174, avg_distance#175]
+Arguments: isFinalPlan=false
+
+

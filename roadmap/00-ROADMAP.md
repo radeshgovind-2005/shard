@@ -30,7 +30,7 @@ Each optimisation needs evidence of a bottleneck before you change anything (a s
 | Experiment log structure | ✅ done, but empty: [`experiments/LOG.md`](../experiments/LOG.md) |
 | Perf-loop agents and Git slash commands | ✅ done: `.claude/agents/`, `.claude/commands/` |
 | Report template | ✅ there, nothing written yet |
-| **Pipeline code** | 🟡 skeleton (1a) and M1 (1b) done; M2 and M3 next: [`src/main/kotlin/com/radeshgovind/`](../src/main/kotlin/com/radeshgovind/) |
+| **Pipeline code** | 🟡 skeleton (1a), M1 (1b) and M2 (1c) done; M3 next: [`src/main/kotlin/com/radeshgovind/`](../src/main/kotlin/com/radeshgovind/) |
 | **Profiler** | ❌ the Lab 3 one is Python. Needs a Kotlin port (Phase 2) |
 | Docker Spark in this repo | ✅ done: [`docker/docker-compose.yml`](../docker/docker-compose.yml), Spark 4.2.1 / Java 21, SparkPi ran on 2 workers |
 | DI cluster | ❓ no information anywhere in the course material |
@@ -128,11 +128,11 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 - [x] Test: a hand-made DataFrame with one row per failure case, plus one valid row. Assert the cleaned count and the per-criterion counts.
 
 ### 1c. M2: temporal demand (`feat/m2-temporal-demand`)
-- [ ] Join the cleaned trips with the zone lookup on `PULocationID` to get `pickup_borough`. A plain join is fine for now; broadcasting is a later optimisation.
-- [ ] Derive `day_of_week` (`dayofweek`), `hour_of_day` (`hour`), and duration in minutes from `timestamp_diff("SECOND", pickup, dropoff) / 60.0`. That works on `TIMESTAMP_NTZ` without attaching a time zone (see 02 → D3).
-- [ ] `groupBy(pickup_borough, day_of_week, hour_of_day)`: `count`, `avg(fare_amount)`, `avg(duration_min)`, `avg(trip_distance)`.
-- [ ] Write Parquet with `partitionBy("pickup_borough")` (the spec says "partitioned by borough").
-- [ ] Test: a handful of trips across two boroughs, then check the counts and means.
+- [x] Join the cleaned trips with the zone lookup on `PULocationID` to get `pickup_borough`. A plain join is fine for now; broadcasting is a later optimisation.
+- [x] Derive `day_of_week` (`dayofweek`, 1 = Sunday … 7 = Saturday), `hour_of_day` (`hour`), and duration in minutes. *(Changed, D7: `timestamp_diff` turned out to cast `TIMESTAMP_NTZ` to `TIMESTAMP` in the session time zone, which is the D3 problem again. The duration is `(dropoff − pickup)` as an interval in seconds, divided by 60.0, which uses no time zone. See README → M2.)*
+- [x] `groupBy(pickup_borough, day_of_week, hour_of_day)`: `count`, `avg(fare_amount)`, `avg(duration_min)`, `avg(trip_distance)`.
+- [x] Write Parquet with `partitionBy("pickup_borough")` (the spec says "partitioned by borough").
+- [x] Test: a handful of trips across two boroughs, then check the counts and means.
 
 ### 1d. M3: zone statistics (`feat/m3-zone-statistics`)
 - [ ] `groupBy(PULocationID, month)`: trip count, `avg` and `stddev` of `fare_amount` and `trip_distance`. Join the borough from the zone lookup.

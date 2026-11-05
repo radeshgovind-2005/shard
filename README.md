@@ -129,6 +129,16 @@ Every trip is cast once to the 11 spec columns (plus `source_year` and `source_m
 
 Output: `<output>/m1/` (Parquet), one row per source year: `source_year, raw_trips, bad_fare, bad_distance, bad_passenger_count, bad_time_order, bad_zone, removed_trips, kept_trips, null_passenger_count`. The run also prints it.
 
+### M2: temporal demand
+
+Starts from M1's cleaned trips and joins the zone lookup on `PULocationID` = `LocationID` to get `pickup_borough` (a plain inner join, no hint). It then groups by `pickup_borough, day_of_week, hour_of_day` and computes `trip_count`, `avg_fare` (`fare_amount`), `avg_duration_min` and `avg_distance` (`trip_distance`).
+
+- **Day and hour** come from the pickup, in NYC wall-clock time (D3). `day_of_week` is Spark's `dayofweek`: **1 = Sunday, 2 = Monday, …, 7 = Saturday**. A trip from Sunday 23:50 to Monday 00:20 counts at Sunday, hour 23.
+- **D7: duration is computed without any time zone.** `duration_min = (dropoff − pickup)` in seconds, divided by 60.0. Subtracting two `TIMESTAMP_NTZ` values gives an interval with no time zone involved. `timestamp_diff()` would cast both sides to `TIMESTAMP` in the session time zone first, so local (Europe/Lisbon) and Docker (UTC) runs could disagree around Lisbon's DST switches. Caveat: a trip spanning NYC's own DST switch is measured in wall-clock time, so it's off by an hour. The data stores no UTC offset, so this can't be fixed.
+- **No trips are lost in the join.** M1 keeps only zones 1–263, and the lookup holds every one of them, so the sum of `trip_count` equals M1's `kept_trips`. `Unknown` (264) and `N/A` (265) never appear. The boroughs are EWR, Bronx, Brooklyn, Manhattan, Queens and Staten Island.
+
+Output: `<output>/m2/` (Parquet), partitioned by borough (`<output>/m2/pickup_borough=<name>/`), one row per borough, day and hour that had at least one trip (EWR has only 43 of the 168 in January): `day_of_week, hour_of_day, trip_count, avg_fare, avg_duration_min, avg_distance`, plus `pickup_borough` from the folder name. The run then prints the trips and rows per borough, with the total on the last row (`pickup_borough` = null).
+
 ### Local
 
 `local[*]`, with Spark coming from Gradle:
