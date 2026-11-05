@@ -15,8 +15,8 @@ Things the repo can't set up by itself. Tick each one off and fill in README →
 
 ## Lab 3 profiler
 
-- [ ] The profiler code from Lab 3 (the spec says we may modify it)
-- [ ] What it measures and how (REST API? event logs? Python-only?), so it can be used on this JVM pipeline
+- [x] The profiler code from Lab 3 (the spec says we may modify it): `labs/compar-lab03-spark-profiling/notebooks/spark_profiler.py`
+- [x] What it measures and how (REST API? event logs? Python-only?), so it can be used on this JVM pipeline: Python. It tags jobs with `setJobGroup`, maps them to stages via `statusTracker`, and sums stage metrics from the UI REST API (wall time, tasks, executor run/CPU time, input/output, shuffle R/W, spill). It's being ported to Kotlin with a `SparkListener` instead of REST: see `roadmap/01-SKELETON-AND-PROFILER.md` Part B.
 
 ## DI cluster (if it becomes available)
 

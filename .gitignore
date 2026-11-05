@@ -63,3 +63,7 @@ output/
 spark-warehouse/
 metastore_db/
 derby.log
+
+# Other AI tools mirroring the .claude setup (Codex); .claude/ is the source of truth
+.agents/
+.codex/

@@ -104,11 +104,11 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 > **Write the straightforward version first. Don't pre-optimise.** No `broadcast()`, `cache()` or repartitioning yet. The baseline should be the natural implementation, so the profiler has real bottlenecks to find. Optimising it up front leaves the report with nothing to show and goes against "no speculative optimisation".
 
 ### 1a. Skeleton and CLI (`feat/pipeline-skeleton`)
-- [ ] `com.radeshgovind.cli`: `PipelineArgs` with `--input` (dir containing `trips/` and `taxi_zone_lookup.csv`), `--years` (`2025`, `2024-2025`, `2025-01`), `--fraction` (sampling, e.g. `0.1`, for the 10–20% scale run), `--output`, and `--ops` (e.g. `m1,m2,m3`). Parse once at the edge.
-- [ ] `Main.kt`: build the `SparkSession`. Set `master("local[*]")` **only if `spark.master` isn't already set**, so `make run` works locally and `spark-submit --master` wins on a cluster.
-- [ ] `runPipeline(spark, args)`: the top-level story, as in `references/spark.md`. Actions (`write`, `collect`) happen only here.
-- [ ] Packages: `com.radeshgovind.ingest`, `.demand` (M2), `.zones` (M3), `.cli`, with `.profiling` later. One concept per file. Column names go in one `object TripColumns`.
-- [ ] Never write into `data/`. Outputs go under `--output` (e.g. `output/m1/`, `output/m2/`).
+- [x] `com.radeshgovind.cli`: `PipelineArgs` with `--input` (dir containing `trips/` and `taxi_zone_lookup.csv`), `--years` (`2025`, `2024-2025`, `2025-01`), `--fraction` (sampling, e.g. `0.1`, for the 10–20% scale run), `--output`, and `--ops` (e.g. `m1,m2,m3`). Parse once at the edge.
+- [x] `Main.kt`: build the `SparkSession`. Set `master("local[*]")` **only if `spark.master` isn't already set**, so `make run` works locally and `spark-submit --master` wins on a cluster.
+- [x] `runPipeline(spark, args)`: the top-level story, as in `references/spark.md`. Actions (`write`, `collect`) happen only here.
+- [x] Packages: `com.radeshgovind.ingest`, `.demand` (M2), `.zones` (M3), `.cli`, with `.profiling` later. One concept per file. Column names go in one `object TripColumns`.
+- [x] Never write into `data/`. Outputs go under `--output` (e.g. `output/m1/`, `output/m2/`).
 
 ### 1b. M1: ingestion and cleaning (`feat/m1-ingestion`)
 - [ ] Load `trips/yellow_tripdata_YYYY-MM.parquet` for the selected years, **2011 onwards only**. 2009–2010 have lat/lon and no zone IDs (README → Dataset).
@@ -143,7 +143,7 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 ### 1e. First end-to-end run
 - [ ] `make run ARGS="--input data --years 2025-01 --output output"`, then `--years 2025`
 - [ ] Open the Spark UI at http://localhost:4040 while it runs and look at the Jobs, Stages and SQL tabs. You'll need them for the profiling.
-- [ ] Update the "Architecture Map" TODO in `AGENTS.md` and the CLI section in the README
+- [x] Update the "Architecture Map" TODO in `AGENTS.md` and the CLI section in the README
 
 ## 6. Later phases (each gets its own roadmap file)
 
