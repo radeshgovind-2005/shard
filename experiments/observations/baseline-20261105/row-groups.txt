@@ -1,0 +1,17 @@
+# Parquet row groups of data/trips/*.parquet (2025), read from the footers with ParquetFileReader in the Docker master:
+#   docker compose -f docker/docker-compose.yml exec -T spark-master /opt/spark/bin/spark-shell --master local[1] -i /tmp/rg.scala
+# where /tmp/rg.scala opens each file with ParquetFileReader.open(HadoopInputFile.fromPath(...)) and prints
+# getFooter.getBlocks: count, getRowCount and getCompressedSize per block. Read-only; run 2026-11-05 after docker-20261105-04.
+RG yellow_tripdata_2025-01.parquet size=59158238 rowgroups=4 rows=1048576,1048576,1048576,329498 bytes=17825215,17515416,17832718,5964776
+RG yellow_tripdata_2025-02.parquet size=60343086 rowgroups=4 rows=1048576,1048576,1048576,431815 bytes=17567881,17581211,17613102,7560781
+RG yellow_tripdata_2025-03.parquet size=69964745 rowgroups=4 rows=1048576,1048576,1048576,999529 bytes=17570467,17394796,17701438,17277575
+RG yellow_tripdata_2025-04.parquet size=67352824 rowgroups=4 rows=1048576,1048576,1048576,824825 bytes=17588920,17603751,17526480,14613210
+RG yellow_tripdata_2025-05.parquet size=77837865 rowgroups=5 rows=1048576,1048576,1048576,1048576,397541 bytes=17510890,17705857,17556537,17843975,7195929
+RG yellow_tripdata_2025-06.parquet size=73542954 rowgroups=5 rows=1048576,1048576,1048576,1048576,128656 bytes=17701401,17684775,17896235,17651748,2584488
+RG yellow_tripdata_2025-07.parquet size=66943728 rowgroups=4 rows=1048576,1048576,1048576,753235 bytes=18031463,17859391,18107838,12924915
+RG yellow_tripdata_2025-08.parquet size=62293743 rowgroups=4 rows=1048576,1048576,1048576,428363 bytes=18041937,17818035,18505759,7907907
+RG yellow_tripdata_2025-09.parquet size=72432945 rowgroups=5 rows=1048576,1048576,1048576,1048576,56711 bytes=17868967,17549221,17967003,17835513,1187624
+RG yellow_tripdata_2025-10.parquet size=75267589 rowgroups=5 rows=1048576,1048576,1048576,1048576,234395 bytes=17542791,17711158,17490130,17952462,4546373
+RG yellow_tripdata_2025-11.parquet size=71134255 rowgroups=4 rows=1048576,1048576,1048576,1035716 bytes=17687905,17574011,17713429,18138455
+RG yellow_tripdata_2025-12.parquet size=73701327 rowgroups=5 rows=1048576,1048576,1048576,1048576,110702 bytes=17783617,17546969,18044423,17969771,2332244
+# total: 53 row groups, 48,722,602 rows; full row groups are 1,048,576 rows / 17.4-18.5 MB compressed

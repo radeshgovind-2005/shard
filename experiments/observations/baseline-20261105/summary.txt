@@ -1,0 +1,96 @@
+# python3 -I scripts/summarize.py experiments/runs local-20261105-0{2..7}
+### local-20261105-02 sha=ff4adff env=local master=local[*]
+  m1     wall=   6.98s stages=  2 tasks=  13 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   44.5s cpu/run=0.73 gc= 3.8%
+  m2     wall=   4.69s stages=  3 tasks=  14 in=     0.2MiB shR=    0.7 shW=    0.7MiB spillD=   0.0 spillM=    0.0MiB run=   32.3s cpu/run=0.78 gc= 4.0%
+  m3     wall=   8.19s stages=  7 tasks=  18 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   56.9s cpu/run=0.80 gc= 4.2%
+  o1     wall=  12.09s stages=  4 tasks=  25 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 456.4 spillM= 2752.0MiB run=   99.8s cpu/run=0.72 gc= 3.0%
+  o3     wall=   7.77s stages=  8 tasks=  76 in=     0.2MiB shR=  189.4 shW=  156.5MiB spillD=   0.0 spillM=    0.0MiB run=   65.9s cpu/run=0.72 gc= 3.2%
+  TOTAL  wall=  39.72s stages= 24 tasks= 146 in=     0.7MiB shR=  689.9 shW=  656.9MiB spillD= 456.4 spillM= 2752.0MiB run=  299.5s cpu/run=0.74 gc= 3.5%
+### local-20261105-03 sha=ff4adff env=local master=local[*]
+  m1     wall=   6.88s stages=  2 tasks=  13 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   43.7s cpu/run=0.73 gc= 4.0%
+  m2     wall=   4.98s stages=  3 tasks=  14 in=     0.2MiB shR=    0.7 shW=    0.7MiB spillD=   0.0 spillM=    0.0MiB run=   34.9s cpu/run=0.75 gc= 4.1%
+  m3     wall=   8.05s stages=  7 tasks=  18 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   56.3s cpu/run=0.79 gc= 4.4%
+  o1     wall=  11.98s stages=  4 tasks=  25 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 456.4 spillM= 2752.0MiB run=  100.6s cpu/run=0.69 gc= 3.3%
+  o3     wall=   8.72s stages=  8 tasks=  76 in=     0.2MiB shR=  189.4 shW=  156.5MiB spillD=   0.0 spillM=    0.0MiB run=   75.2s cpu/run=0.73 gc= 2.6%
+  TOTAL  wall=  40.61s stages= 24 tasks= 146 in=     0.7MiB shR=  689.9 shW=  656.9MiB spillD= 456.4 spillM= 2752.0MiB run=  310.8s cpu/run=0.73 gc= 3.5%
+### local-20261105-04 sha=ff4adff env=local master=local[*]
+  m1     wall=   6.94s stages=  2 tasks=  13 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   45.3s cpu/run=0.73 gc= 4.0%
+  m2     wall=   5.30s stages=  3 tasks=  14 in=     0.2MiB shR=    0.7 shW=    0.7MiB spillD=   0.0 spillM=    0.0MiB run=   37.1s cpu/run=0.66 gc= 3.9%
+  m3     wall=   9.59s stages=  7 tasks=  18 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   69.2s cpu/run=0.66 gc= 4.2%
+  o1     wall=  11.85s stages=  4 tasks=  25 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 456.4 spillM= 2752.0MiB run=   97.5s cpu/run=0.68 gc= 3.0%
+  o3     wall=   9.49s stages=  8 tasks=  76 in=     0.2MiB shR=  189.4 shW=  156.5MiB spillD=   0.0 spillM=    0.0MiB run=   80.2s cpu/run=0.71 gc= 2.6%
+  TOTAL  wall=  43.17s stages= 24 tasks= 146 in=     0.7MiB shR=  689.9 shW=  656.9MiB spillD= 456.4 spillM= 2752.0MiB run=  329.3s cpu/run=0.69 gc= 3.4%
+### local-20261105-05 sha=ff4adff env=local master=local[*]
+  m1     wall=   7.89s stages=  2 tasks=  13 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   50.6s cpu/run=0.69 gc= 4.5%
+  m2     wall=   4.99s stages=  3 tasks=  14 in=     0.2MiB shR=    0.7 shW=    0.7MiB spillD=   0.0 spillM=    0.0MiB run=   34.8s cpu/run=0.74 gc= 3.9%
+  m3     wall=   8.81s stages=  7 tasks=  18 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   62.8s cpu/run=0.75 gc= 4.5%
+  o1     wall=  12.16s stages=  4 tasks=  25 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 456.4 spillM= 2752.0MiB run=  101.6s cpu/run=0.69 gc= 3.0%
+  o3     wall=   9.80s stages=  8 tasks=  76 in=     0.2MiB shR=  189.4 shW=  156.5MiB spillD=   0.0 spillM=    0.0MiB run=   85.4s cpu/run=0.71 gc= 2.6%
+  TOTAL  wall=  43.65s stages= 24 tasks= 146 in=     0.7MiB shR=  689.9 shW=  656.9MiB spillD= 456.4 spillM= 2752.0MiB run=  335.2s cpu/run=0.71 gc= 3.5%
+### local-20261105-06 sha=ff4adff env=local master=local[*]
+  m1     wall=   7.26s stages=  2 tasks=  13 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   44.6s cpu/run=0.69 gc= 4.8%
+  m2     wall=   4.69s stages=  3 tasks=  14 in=     0.2MiB shR=    0.7 shW=    0.7MiB spillD=   0.0 spillM=    0.0MiB run=   32.4s cpu/run=0.77 gc= 3.6%
+  m3     wall=   8.51s stages=  7 tasks=  18 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   60.1s cpu/run=0.75 gc= 4.7%
+  o1     wall=  11.79s stages=  4 tasks=  25 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 456.4 spillM= 2752.0MiB run=   97.6s cpu/run=0.71 gc= 2.5%
+  o3     wall=   9.52s stages=  8 tasks=  76 in=     0.2MiB shR=  189.4 shW=  156.5MiB spillD=   0.0 spillM=    0.0MiB run=   81.5s cpu/run=0.74 gc= 2.7%
+  TOTAL  wall=  41.77s stages= 24 tasks= 146 in=     0.7MiB shR=  689.9 shW=  656.9MiB spillD= 456.4 spillM= 2752.0MiB run=  316.2s cpu/run=0.73 gc= 3.4%
+### local-20261105-07 sha=ff4adff env=local master=local[*]
+  m1     wall=   6.93s stages=  2 tasks=  13 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   44.9s cpu/run=0.70 gc= 4.2%
+  m2     wall=   4.80s stages=  3 tasks=  14 in=     0.2MiB shR=    0.7 shW=    0.7MiB spillD=   0.0 spillM=    0.0MiB run=   32.9s cpu/run=0.76 gc= 4.1%
+  m3     wall=   8.43s stages=  7 tasks=  18 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   58.4s cpu/run=0.78 gc= 4.3%
+  o1     wall=  11.69s stages=  4 tasks=  25 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 456.4 spillM= 2752.0MiB run=   97.5s cpu/run=0.70 gc= 5.2%
+  o3     wall=   7.85s stages=  8 tasks=  76 in=     0.2MiB shR=  189.4 shW=  156.5MiB spillD=   0.0 spillM=    0.0MiB run=   67.4s cpu/run=0.74 gc= 3.0%
+  TOTAL  wall=  39.70s stages= 24 tasks= 146 in=     0.7MiB shR=  689.9 shW=  656.9MiB spillD= 456.4 spillM= 2752.0MiB run=  301.0s cpu/run=0.73 gc= 4.3%
+
+### median [min-max] wall, spread = (max-min)/median
+  m1        6.96 [6.88-7.89] spread= 14.5%
+  m2        4.89 [4.69-5.30] spread= 12.5%
+  m3        8.47 [8.05-9.59] spread= 18.2%
+  o1       11.91 [11.69-12.16] spread=  3.9%
+  o3        9.11 [7.77-9.80] spread= 22.3%
+  TOTAL    41.19 [39.70-43.65] spread=  9.6%
+
+### share of median total wall
+  m1      16.9%
+  m2      11.9%
+  m3      20.6%
+  o1      28.9%
+  o3      22.1%
+
+# python3 -I scripts/summarize.py experiments/runs docker-20261105-0{2..4}
+### docker-20261105-02 sha=ff4adff env=docker master=spark://spark-master:7077
+  m1     wall=   9.84s stages=  2 tasks=  11 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   27.5s cpu/run=0.82 gc= 7.7%
+  m2     wall=   7.06s stages=  3 tasks=  12 in=     0.2MiB shR=    0.6 shW=    0.6MiB spillD=   0.0 spillM=    0.0MiB run=   20.5s cpu/run=0.89 gc= 6.1%
+  m3     wall=  12.02s stages=  7 tasks=  16 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   34.0s cpu/run=0.89 gc= 7.4%
+  o1     wall=  15.57s stages=  4 tasks=  21 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 431.7 spillM= 2392.0MiB run=   52.3s cpu/run=0.93 gc= 3.4%
+  o3     wall=  13.79s stages=  8 tasks=  36 in=     0.2MiB shR=  182.9 shW=  149.6MiB spillD=   0.0 spillM=    0.0MiB run=   33.0s cpu/run=0.94 gc= 2.0%
+  TOTAL  wall=  58.28s stages= 24 tasks=  96 in=     0.7MiB shR=  683.3 shW=  650.0MiB spillD= 431.7 spillM= 2392.0MiB run=  167.4s cpu/run=0.90 gc= 5.0%
+### docker-20261105-03 sha=ff4adff env=docker master=spark://spark-master:7077
+  m1     wall=   9.63s stages=  2 tasks=  11 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   27.1s cpu/run=0.83 gc= 6.5%
+  m2     wall=   7.37s stages=  3 tasks=  12 in=     0.2MiB shR=    0.6 shW=    0.6MiB spillD=   0.0 spillM=    0.0MiB run=   21.2s cpu/run=0.90 gc= 5.4%
+  m3     wall=  12.17s stages=  7 tasks=  16 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   35.1s cpu/run=0.87 gc= 8.8%
+  o1     wall=  15.90s stages=  4 tasks=  21 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 431.8 spillM= 2384.0MiB run=   53.2s cpu/run=0.93 gc= 3.0%
+  o3     wall=  13.16s stages=  8 tasks=  36 in=     0.2MiB shR=  182.9 shW=  149.6MiB spillD=   0.0 spillM=    0.0MiB run=   33.9s cpu/run=0.94 gc= 2.2%
+  TOTAL  wall=  58.23s stages= 24 tasks=  96 in=     0.7MiB shR=  683.3 shW=  650.0MiB spillD= 431.8 spillM= 2384.0MiB run=  170.5s cpu/run=0.90 gc= 4.9%
+### docker-20261105-04 sha=ff4adff env=docker master=spark://spark-master:7077
+  m1     wall=  10.09s stages=  2 tasks=  11 in=     0.1MiB shR=    0.0 shW=    0.0MiB spillD=   0.0 spillM=    0.0MiB run=   28.2s cpu/run=0.83 gc= 7.3%
+  m2     wall=   7.36s stages=  3 tasks=  12 in=     0.2MiB shR=    0.6 shW=    0.6MiB spillD=   0.0 spillM=    0.0MiB run=   21.5s cpu/run=0.88 gc= 6.2%
+  m3     wall=  12.23s stages=  7 tasks=  16 in=     0.2MiB shR=    1.0 shW=    1.0MiB spillD=   0.0 spillM=    0.0MiB run=   35.1s cpu/run=0.89 gc= 7.6%
+  o1     wall=  16.18s stages=  4 tasks=  21 in=     0.2MiB shR=  498.8 shW=  498.8MiB spillD= 431.8 spillM= 2400.0MiB run=   54.5s cpu/run=0.93 gc= 3.2%
+  o3     wall=  14.10s stages=  8 tasks=  36 in=     0.2MiB shR=  182.9 shW=  149.6MiB spillD=   0.0 spillM=    0.0MiB run=   36.6s cpu/run=0.94 gc= 2.6%
+  TOTAL  wall=  59.96s stages= 24 tasks=  96 in=     0.7MiB shR=  683.3 shW=  650.0MiB spillD= 431.8 spillM= 2400.0MiB run=  175.9s cpu/run=0.90 gc= 5.0%
+
+### median [min-max] wall, spread = (max-min)/median
+  m1        9.84 [9.63-10.09] spread=  4.7%
+  m2        7.36 [7.06-7.37] spread=  4.2%
+  m3       12.17 [12.02-12.23] spread=  1.7%
+  o1       15.90 [15.57-16.18] spread=  3.8%
+  o3       13.79 [13.16-14.10] spread=  6.8%
+  TOTAL    58.28 [58.23-59.96] spread=  3.0%
+
+### share of median total wall
+  m1      16.9%
+  m2      12.6%
+  m3      20.9%
+  o1      27.3%
+  o3      23.7%
