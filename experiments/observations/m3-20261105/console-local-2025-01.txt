@@ -1,0 +1,26 @@
+# make run ARGS="--input <shard>/data --output output --years 2025-01 --ops m1,m3 --run-id local-20261105-90 --runs-dir <scratchpad>/runs"
+# worktree on 72f9bd0 + uncommitted M3; run by Claude 2026-11-05. Throwaway run-id, not in LOG -> Runs.
+26/11/05 15:14:19 INFO SparkContext: Running Spark version 4.2.1
+26/11/05 15:14:19 INFO SparkContext: Java version 21.0.12.1
+26/11/05 15:14:20 INFO Executor: Running Spark version 4.2.1
+26/11/05 15:14:20 INFO Executor: Java version 21.0.12.1
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|source_year|raw_trips|bad_fare|bad_distance|bad_passenger_count|bad_time_order|bad_zone|removed_trips|kept_trips|null_passenger_count|
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|2025       |3475226  |145516  |90893       |24674              |2051          |28357   |271401       |3203825   |540149              |
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
++--------------+----------+----+---------+-----------+
+|pickup_borough|trip_count|rows|anomalies|no_baseline|
++--------------+----------+----+---------+-----------+
+|Bronx         |12735     |43  |0        |43         |
+|Brooklyn      |55321     |61  |0        |61         |
+|EWR           |61        |1   |0        |1          |
+|Manhattan     |2874748   |66  |0        |66         |
+|Queens        |260761    |69  |0        |69         |
+|Staten Island |199       |17  |0        |17         |
+|NULL          |3203825   |257 |0        |257        |
++--------------+----------+----+---------+-----------+
+profiled run <scratchpad>/runs/local-20261105-90
+profile    |   wall s | stages |  tasks |  shuffle R |  shuffle W |      spill | max skew
+m1         |     3.34 |      2 |     11 |      399 B |      399 B |        0 B |     4.15
+m3         |     2.27 |      7 |     16 |  186.6 KiB |  186.6 KiB |        0 B |    10.52

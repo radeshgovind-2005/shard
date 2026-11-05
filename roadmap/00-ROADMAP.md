@@ -30,7 +30,7 @@ Each optimisation needs evidence of a bottleneck before you change anything (a s
 | Experiment log structure | ✅ done, but empty: [`experiments/LOG.md`](../experiments/LOG.md) |
 | Perf-loop agents and Git slash commands | ✅ done: `.claude/agents/`, `.claude/commands/` |
 | Report template | ✅ there, nothing written yet |
-| **Pipeline code** | 🟡 skeleton (1a), M1 (1b) and M2 (1c) done; M3 next: [`src/main/kotlin/com/radeshgovind/`](../src/main/kotlin/com/radeshgovind/) |
+| **Pipeline code** | 🟡 skeleton (1a), M1 (1b), M2 (1c) and M3 (1d) done; O1–O4 next: [`src/main/kotlin/com/radeshgovind/`](../src/main/kotlin/com/radeshgovind/) |
 | **Profiler** | ❌ the Lab 3 one is Python. Needs a Kotlin port (Phase 2) |
 | Docker Spark in this repo | ✅ done: [`docker/docker-compose.yml`](../docker/docker-compose.yml), Spark 4.2.1 / Java 21, SparkPi ran on 2 workers |
 | DI cluster | ❓ no information anywhere in the course material |
@@ -135,12 +135,15 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 - [x] Test: a handful of trips across two boroughs, then check the counts and means.
 
 ### 1d. M3: zone statistics (`feat/m3-zone-statistics`)
-- [ ] `groupBy(PULocationID, month)`: trip count, `avg` and `stddev` of `fare_amount` and `trip_distance`. Join the borough from the zone lookup.
-- [ ] Window 1: `rank()` of zones by monthly trip volume, `partitionBy(borough, month)`, ordered by count descending.
-- [ ] Window 2: rolling 3-month trip share, the zone's trips over months *m-2..m* divided by the borough's trips over the same months. Order by a **month index** (`year*12 + month`) with `rangeBetween(-2, 0)`, so missing months don't silently become "the previous 3 rows".
-- [ ] Window 3: flag a zone when its current-month volume deviates from **its own** rolling mean by more than 1.5 σ (`partitionBy(zone)`, rolling `avg` and `stddev`). Pick the window length, document it, and handle a null σ for the first months.
-- [ ] Write to `output/m3/`.
-- [ ] Test: one zone with an obvious spike month gets flagged, and the ranks within a borough come out right.
+> Decisions D8–D14 are in README → M3. Code in `src/main/kotlin/com/radeshgovind/zones/`.
+
+- [x] `groupBy(PULocationID, month)`: trip count, `avg` and `stddev` of `fare_amount` and `trip_distance`. Join the borough from the zone lookup. *(D8: month = `source_year`/`source_month` plus `month_index`. D9: aggregate first, then join. D10: sample σ, null for one trip.)*
+- [x] Window 1: `rank()` of zones by monthly trip volume, `partitionBy(borough, month)`, ordered by count descending. *(D11)*
+- [x] Window 2: rolling 3-month trip share, the zone's trips over months *m-2..m* divided by the borough's trips over the same months. Order by a **month index** (`year*12 + month`) with `rangeBetween(-2, 0)`, so missing months don't silently become "the previous 3 rows". *(D12: the borough total is one RANGE window over the borough's zone-month rows.)*
+- [x] Window 3: flag a zone when its current-month volume deviates from **its own** rolling mean by more than 1.5 σ (`partitionBy(zone)`, rolling `avg` and `stddev`). Pick the window length, document it, and handle a null σ for the first months. *(D13: baseline = the previous 3 months, `rangeBetween(-3, -1)`, current month excluded because an inclusive 3-month window can never exceed 1.5 σ. Null flag without a σ. D14: what it can and can't show on 2025.)*
+- [x] Write to `output/m3/`. *(Inside `profiler.profile("m3")`, not partitioned.)*
+- [x] Test: one zone with an obvious spike month gets flagged, and the ranks within a borough come out right. *(`zones/ZoneStatisticsTest`, plus a missing-month rolling share and a null σ.)*
+- [x] Verified: `make check`; Σ `trip_count` = M1 `kept_trips` on 2025-01 (3,203,825, local and Docker) and on 2025 (43,599,832); post-run plan in LOG → Observations → M3. *(The 2025 run flags 46 % of baselined rows, mostly city-wide seasonality. Decided: keep the count-based flag as the spec words it; the rate goes in the report's limitations.)*
 
 ### 1e. First end-to-end run
 - [ ] `make run ARGS="--input data --years 2025-01 --output output"`, then `--years 2025`

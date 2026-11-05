@@ -99,6 +99,68 @@ The criteria overlap (D5): in January they sum to 291,491, against 271,401 remov
 - **Setup of these runs.** The worktree has no `data/`, so every run read the main checkout's `data/` (the files in `data/MANIFEST.tsv`). For Docker, the M2 jar (`make jar` in the worktree) was copied over the main checkout's `build/libs/shard-all.jar`, and Docker wrote to the main checkout's `output/`. The plan line was added only for the one local 2025-01 run and removed before the jar was built, and `make check` passed after removing it.
 - **Development record** (AI-tools acknowledgement): Claude wrote the M2 code and tests. `javap` evidence changed the specified duration formula (D7). `make check` caught one bug before any data run: a bare `col()` inside a `Dataset` extension resolved to the receiver's `Dataset.col` (the known gotcha), fixed by moving it into a top-level helper.
 
+### M3: zone-level statistics (2026-11-05, uncommitted M3 working tree on `72f9bd0`)
+
+**Provenance.** No run-ids in LOG → Runs: development runs on uncommitted code, all run by Claude. The post-run plan and stage table come from a throwaway profiled run (`--run-id local-20261105-90 --runs-dir <scratchpad>`), used only because the profiler writes the final (post-AQE) plan without a code change. Its times are **not** a baseline measurement. Raw evidence, with the command for each file, is in [`observations/m3-20261105/`](observations/m3-20261105/README.md).
+
+**What M3 computes** (report §2; decisions D8–D14 in README → M3): cleaned trips → `groupBy(PULocationID, source_year, source_month)` with `trip_count`, `avg`/`stddev_samp` of fare and distance, and `month_index = year*12 + month` → borough join (`withPickupBorough`, the same plain join as M2) on the zone-month rows → window 1, `rank()` over (`pickup_borough`, `month_index`) → window 2, zone and borough sums over `rangeBetween(-2, 0)` and their ratio → window 3, the zone's mean and σ over its previous 3 months (`rangeBetween(-3, -1)`) and `is_volume_anomaly` → Parquet in `<output>/m3/`, not partitioned.
+
+**Correctness: verified.** Σ `trip_count` over all zone-months = M1 `kept_trips`, and every borough's total equals M2's for the same input.
+
+| Where | `--years` | Σ `trip_count` | M1 `kept_trips` | zone-month rows | anomalies / no_baseline | evidence |
+|---|---|---|---|---|---|---|
+| local `local[*]` | 2025-01 | **3,203,825** ✅ | 3,203,825 | 257 | 0 / 257 | `console-local-2025-01.txt` |
+| Docker, 2 workers | 2025-01 | **3,203,825** ✅ | 3,203,825 | 257 | 0 / 257; identical to local, borough by borough | `console-docker-2025-01.txt` |
+| local `local[*]` | 2025 | **43,599,832** ✅ | 43,599,832 | 3,083 | 1,166 / 528 | `console-local-2025.txt` |
+
+- Borough totals match M2 exactly (for example, January Manhattan is 2,874,748, and its `borough_trips_3m` in January is that same number, because the frame holds one month). January has no anomalies and only no_baseline rows, as D13 requires.
+- **Unit tests** (`zones/ZoneStatisticsTest`, 6 tests, `make check` green): exact schema; mean and sample σ on a 3-trip zone-month, and a null σ on a single trip (D10); Manhattan ranks 10, 3, 3 → 1, 2, 2 with Queens ranked separately (D11); a zone with no February gets an April rolling sum over February–April only (D12); a 10, 12, 11, 40 zone is flagged in April, not in March, and null in January and February (D13); Σ `trip_count` = input trips.
+
+**Finding: the anomaly flag mostly tracks city-wide seasonality** (2025, `anomaly-breakdown-2025.txt`). 1,166 of the 2,555 rows that have a baseline are flagged (45.6 %). Per month:
+
+| month | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| flagged | 240 | 18 | 161 | 90 | 62 | 159 | 83 | 103 | 68 | 182 |
+| of which downward | 2 | 1 | 1 | 9 | 39 | 147 | 66 | 65 | 36 | 4 |
+
+- March is flagged almost everywhere (240 of 253 baselined rows). Its baseline is January and February alone, 2 points, one of them a 28-day month. August is a citywide dip (147 of 159 flags are downward). The flag fires at every zone size: 225 of 522 baselined rows with a baseline mean ≥ 10k trips, 142 of 337 below 100.
+- That is what D14 anticipated, and it's partly built into the method. Under pure noise, a new point compared with the mean and sample σ of n earlier points exceeds 1.5 s with probability P(|t₍ₙ₋₁₎| > 1.5/√(1+1/n)): about 0.44 for n = 2 and 0.32 for n = 3. On top of that, a whole-city swing moves every zone together. σ = 0 occurred in 10 rows (9 flagged).
+- **Decided 2026-11-05 (user): keep the count-based flag.** It is the spec's wording ("current-month volume" against "their own rolling mean"). Flagging on the zone's **share** of its borough would cancel city-wide swings, and a longer baseline would shrink the t-noise, but both change what M3 computes. The report states the 46 % rate and its causes as a limitation (§6) instead.
+
+**Post-run plan** (`plan-m3-final-local-2025-01.txt`, `isFinalPlan=true`) and stages (`stages-local-2025-01.json`), 2025-01, local:
+- **Five `Exchange`s, not four.** Each is `hashpartitioning(…, 200)`, coalesced by AQE (`AQEShuffleRead coalesced`) to **1 task**:
+  1. `(PULocationID, source_year, source_month)`, the aggregate
+  2. `(pickup_borough, month_index)`, the rank
+  3. `(PULocationID)`, the zone's rolling sum
+  4. `(pickup_borough)`, the borough's rolling sum
+  5. `(PULocationID)` **again**, for the baseline mean and σ
+
+  Catalyst keeps the windows in code order, so the borough window between the two zone windows forces a second shuffle on the same key. The zone sum and the baseline windows don't share an `Exchange`, which the plan had expected.
+- **The broadcast join again** (`BroadcastHashJoin … BuildRight`, the zone CSV in its own 1-task stage, 12,331 B). It runs right after the final aggregate, in the same stage, on the zone-month rows.
+- **Stages (7, 16 tasks):**
+
+  | stage | what | tasks | shuffle read | shuffle write |
+  |---|---|---|---|---|
+  | 6 | zone CSV, broadcast | 1 | – | – |
+  | 7 | scan, clean, partial aggregate | 10 | – | 106,337 B |
+  | 9 | final aggregate + join | 1 | 106,337 B | 12,340 B |
+  | 12 | rank window | 1 | 12,340 B | 26,701 B |
+  | 16 | zone rolling sum | 1 | 26,701 B | 14,825 B |
+  | 21 | borough rolling sum | 1 | 14,825 B | 30,920 B |
+  | 27 | baseline windows + write | 1 | 30,920 B | – (19,147 B output) |
+
+  186.6 KiB of shuffle in all. The scan stage's task skew is 10.5 (median 122 ms, max 1,284 ms); the other stages have one task each.
+- **Skew signal:** none in the windows. After aggregation, Manhattan is 797 of 3,083 zone-month rows for 2025 (25.9 %, 67 zones), against 86.6 % of the trips (L5). Queens has the most rows (828, 69 zones), EWR 12 (1 zone). With AQE folding every window shuffle into one task, there is nothing to skew.
+- **Metric to check:** the scan stage reports `input_bytes` = 112,280 B for a ~60 MB file (M1's scan stage reports the same number). Check it against the Spark UI before using input bytes in Part C.
+
+**Leads for the profiler** (each needs a profiled run first):
+- **L4 again.** Nothing is cached, so with `--ops m1,m2,m3`, M3's job scans and cleans the trip Parquet a third time.
+- **L8. Window order costs a shuffle.** The second `PULocationID` exchange exists only because of window order. Computing the zone rolling sum and the baseline next to each other should drop it. It's a pure plan change with identical results, so it's an OPT candidate. Each window shuffle is tiny, so the gain is per-stage overhead, not bytes. It's more visible on Docker than locally.
+- **L9. Scan-stage task skew 10.5** for 2025-01. With 10 tasks on 1 file, the split looks uneven: one task took 1.3 s, the median 0.12 s. M1's scan stage shows 4.15. Needs per-task input sizes from the event log.
+- **L5, settled for M3.** Borough skew doesn't reach M3's windows. They see rows per zone, not trips.
+
+**Setup of these runs.** The worktree has no `data/`, so every run read the main checkout's `data/`. For Docker, the M3 jar was `docker cp`'d into the master container (`/tmp/shard-m3.jar`) instead of overwriting the main checkout's `build/libs/shard-all.jar`, and the output went to `/output/dev-m3` (the main checkout's `output/dev-m3/`, gitignored).
+
 ## Hypotheses
 
 Written by `spark-profiler`. Each needs evidence: metric + run-id.

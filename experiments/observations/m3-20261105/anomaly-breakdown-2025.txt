@@ -1,0 +1,70 @@
+# spark-sql --master local[2] in the Docker master container, over a copy of the local 2025 M3 output (docker cp output-2025/m3 → /tmp/m3-2025).
+# Queries (in order; result blocks below follow the same order, tab-separated, no headers):
+#   CREATE TEMPORARY VIEW m3 USING parquet OPTIONS (path '/tmp/m3-2025');
+#   SELECT source_month, count(*) AS rows, count_if(is_volume_anomaly) AS flagged, count_if(is_volume_anomaly IS NULL) AS no_baseline, count_if(is_volume_anomaly AND trip_count < baseline_mean_trips) AS flagged_down FROM m3 GROUP BY source_month ORDER BY source_month;
+#   SELECT CASE WHEN baseline_mean_trips >= 10000 THEN 'a >=10k' WHEN baseline_mean_trips >= 1000 THEN 'b 1k-10k' WHEN baseline_mean_trips >= 100 THEN 'c 100-1k' ELSE 'd <100' END AS zone_size, count(*) AS rows, count_if(is_volume_anomaly) AS flagged FROM m3 WHERE is_volume_anomaly IS NOT NULL GROUP BY 1 ORDER BY 1;
+#   SELECT count_if(baseline_stddev_trips = 0) AS zero_sigma_rows, count_if(baseline_stddev_trips = 0 AND is_volume_anomaly) AS zero_sigma_flagged FROM m3;
+#   SELECT pickup_borough, PULocationID, source_month, trip_count, round(baseline_mean_trips,1) AS base_mean, round(baseline_stddev_trips,1) AS base_sd, volume_rank, round(trip_share_3m,4) AS share FROM m3 WHERE is_volume_anomaly AND baseline_mean_trips >= 10000 ORDER BY abs(trip_count-baseline_mean_trips)/baseline_stddev_trips DESC LIMIT 10;
+#   SELECT pickup_borough, count(*) AS rows, count(DISTINCT PULocationID) AS zones FROM m3 GROUP BY 1 ORDER BY 2 DESC;
+#   SELECT source_month, PULocationID, trip_count, volume_rank, zone_trips_3m, borough_trips_3m, round(trip_share_3m,4) AS share FROM m3 WHERE pickup_borough = 'Manhattan' AND volume_rank <= 2 ORDER BY source_month, volume_rank;
+#
+# Block 1 columns: source_month, rows, flagged, no_baseline, flagged_down (flagged with trip_count < baseline mean)
+# Block 2: baseline-size bucket, baselined rows, flagged.  Block 3: rows with sigma = 0, of which flagged.
+# Block 4: top-10 flagged Manhattan-scale zones by z.  Block 5: rows and zones per borough.  Block 6: Manhattan rank 1-2 per month with rolling share.
+1	257	0	257	0
+2	255	0	255	0
+3	256	240	3	2
+4	259	18	2	1
+5	256	161	1	1
+6	256	90	0	9
+7	258	62	3	39
+8	257	159	1	147
+9	257	83	1	66
+10	258	103	3	65
+11	257	68	2	36
+12	257	182	0	4
+a >=10k	522	225
+b 1k-10k	751	347
+c 100-1k	945	452
+d <100	337	142
+10	9
+Manhattan	13	3	22649	19166.5	33.2	42	0.0067
+Manhattan	100	3	54349	46845.0	91.9	27	0.0163
+Manhattan	246	3	68053	59407.5	135.1	20	0.0206
+Manhattan	48	3	93817	78416.5	458.9	14	0.0276
+Manhattan	170	3	102208	89143.5	696.5	9	0.0309
+Manhattan	186	8	110014	119113.3	722.1	3	0.0396
+Manhattan	151	3	29366	25202.5	361.3	38	0.0088
+Manhattan	41	12	19561	14369.7	459.5	45	0.0048
+Manhattan	151	12	33273	27657.7	560.5	37	0.0089
+Manhattan	233	3	42984	34235.5	932.7	33	0.0123
+Queens	828	69
+Manhattan	797	67
+Brooklyn	732	61
+Bronx	513	43
+Staten Island	201	19
+EWR	12	1
+1	161	159443	1	159443	2874748	0.0555
+1	237	156066	2	156066	2874748	0.0543
+2	161	151003	1	310446	5781493	0.0537
+2	237	149042	2	305108	5781493	0.0528
+3	161	170404	1	480850	9078230	0.053
+3	237	161345	2	466453	9078230	0.0514
+4	237	175203	1	485590	9376703	0.0518
+4	161	172021	2	493428	9376703	0.0526
+5	237	190729	1	527277	9945503	0.053
+5	161	169656	2	512081	9945503	0.0515
+6	237	164731	1	530663	9898800	0.0536
+6	161	162391	2	504068	9898800	0.0509
+7	161	159618	1	491665	9644277	0.051
+7	237	136406	2	491866	9644277	0.051
+8	161	132803	1	454812	8785983	0.0518
+8	237	117169	2	418306	8785983	0.0476
+9	237	174101	1	427676	8799086	0.0486
+9	161	153780	2	446201	8799086	0.0507
+10	237	190281	1	481551	9261049	0.052
+10	161	176681	2	463264	9261049	0.05
+11	237	179744	1	544126	9770101	0.0557
+11	161	168003	2	498464	9770101	0.051
+12	237	184527	1	554552	9970239	0.0556
+12	236	165975	2	483745	9970239	0.0485

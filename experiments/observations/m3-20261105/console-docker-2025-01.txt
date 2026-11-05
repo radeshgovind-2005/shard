@@ -1,0 +1,22 @@
+# make jar; docker cp build/libs/shard-all.jar shard-spark-master-1:/tmp/shard-m3.jar
+# docker exec shard-spark-master-1 /opt/spark/bin/spark-submit --class com.radeshgovind.MainKt --master spark://spark-master:7077 /tmp/shard-m3.jar --input /data --output /output/dev-m3 --years 2025-01 --ops m1,m3
+# 2 workers; run by Claude 2026-11-05. The jar was copied into the container so the main checkout's build/libs/ stayed untouched.
+26/11/05 15:15:46 INFO SparkContext: Running Spark version 4.2.1
+26/11/05 15:15:47 INFO StandaloneSchedulerBackend: Granted executor ID app-20261105151547-0002/0 on hostPort 192.168.107.4:37267 with 2 core(s), 1024.0 MiB RAM
+26/11/05 15:15:47 INFO StandaloneSchedulerBackend: Granted executor ID app-20261105151547-0002/1 on hostPort 192.168.107.3:45603 with 2 core(s), 1024.0 MiB RAM
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|source_year|raw_trips|bad_fare|bad_distance|bad_passenger_count|bad_time_order|bad_zone|removed_trips|kept_trips|null_passenger_count|
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|2025       |3475226  |145516  |90893       |24674              |2051          |28357   |271401       |3203825   |540149              |
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
++--------------+----------+----+---------+-----------+
+|pickup_borough|trip_count|rows|anomalies|no_baseline|
++--------------+----------+----+---------+-----------+
+|Bronx         |12735     |43  |0        |43         |
+|Brooklyn      |55321     |61  |0        |61         |
+|EWR           |61        |1   |0        |1          |
+|Manhattan     |2874748   |66  |0        |66         |
+|Queens        |260761    |69  |0        |69         |
+|Staten Island |199       |17  |0        |17         |
+|NULL          |3203825   |257 |0        |257        |
++--------------+----------+----+---------+-----------+

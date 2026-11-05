@@ -16,14 +16,18 @@ import com.radeshgovind.profiling.NoProfiler
 import com.radeshgovind.profiling.Profiler
 import com.radeshgovind.profiling.RunHeader
 import com.radeshgovind.profiling.SparkProfiler
+import com.radeshgovind.zones.ZoneStatsColumns.IS_VOLUME_ANOMALY
+import com.radeshgovind.zones.zoneStatistics
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.asc_nulls_last
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.functions.count
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.sum
+import org.apache.spark.sql.functions.`when`
 import java.nio.file.Path
 
 // The story of the pipeline. Spark actions (write, show, collect) happen only in this file.
@@ -36,6 +40,9 @@ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Fo
     val cleaned = trips.removeInvalidTrips()
     if (Operation.M2 in args.operations) {
         writeTemporalDemand(cleaned, spark.loadZones(args.input), args.outputOf(Operation.M2), profiler)
+    }
+    if (Operation.M3 in args.operations) {
+        writeZoneStatistics(cleaned, spark.loadZones(args.input), args.outputOf(Operation.M3), profiler)
     }
     profiler.finish()
 }
@@ -55,7 +62,7 @@ private fun printCleaningStats(spark: SparkSession, out: Path) {
     spark.read().parquet(out.toString()).orderBy(SOURCE_YEAR).show(false)
 }
 
-// The zones are loaded only when M2 runs: read().csv() checks the path as soon as the Dataset is defined.
+// The zones are loaded only when M2 or M3 runs: read().csv() checks the path as soon as the Dataset is defined.
 private fun writeTemporalDemand(cleaned: Dataset<Row>, zones: Dataset<Row>, out: Path, profiler: Profiler) {
     profiler.profile("m2") {
         cleaned.temporalDemand(zones).write().mode(SaveMode.Overwrite).partitionBy(PICKUP_BOROUGH)
@@ -74,4 +81,28 @@ private fun printDemandTotals(spark: SparkSession, out: Path) {
         .show(false)
 }
 
+// No partitionBy: the spec asks for borough partitioning only for M2.
+private fun writeZoneStatistics(cleaned: Dataset<Row>, zones: Dataset<Row>, out: Path, profiler: Profiler) {
+    profiler.profile("m3") { cleaned.zoneStatistics(zones).write().mode(SaveMode.Overwrite).parquet(out.toString()) }
+    printZoneTotals(cleaned.sparkSession(), out)
+}
+
+// Reads back the written zone-month rows (a few thousand): per borough the trips, rows, flagged rows and rows with
+// too little history to flag, then the total (the null-borough row). The total must equal M1's kept_trips.
+// Outside the profile block on purpose.
+private fun printZoneTotals(spark: SparkSession, out: Path) {
+    spark.read().parquet(out.toString())
+        .rollup(PICKUP_BOROUGH)
+        .agg(
+            sum(TRIP_COUNT).alias(TRIP_COUNT),
+            count(lit(1)).alias(DEMAND_ROWS),
+            count(`when`(col(IS_VOLUME_ANOMALY), 1)).alias(ANOMALY_ROWS),
+            count(`when`(col(IS_VOLUME_ANOMALY).isNull, 1)).alias(NO_BASELINE_ROWS),
+        )
+        .orderBy(asc_nulls_last(PICKUP_BOROUGH))
+        .show(false)
+}
+
 private const val DEMAND_ROWS = "rows"
+private const val ANOMALY_ROWS = "anomalies"
+private const val NO_BASELINE_ROWS = "no_baseline"
