@@ -93,7 +93,7 @@ shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <lis
 | `--years` | no | `2025` | `YYYY` (one year), `YYYY-YYYY` (whole years), or `YYYY-MM` (one month). 2011 onwards, because 2009–2010 have no zone IDs. |
 | `--fraction` | no | `1.0` | share of trips to keep, 0 < f ≤ 1, sampled with a fixed seed (42), so the same fraction keeps the same rows every run |
 | `--ops` | no | every operation (`m1,m2,m3,o1,o3`) | which results to write, comma-separated |
-| `--skip-opts` | no | none (every applied optimisation on) | optimisations to switch off, comma-separated OPT ids (`opt1`), so before/after runs use the same jar. Recorded in `run.json` as `skip_opts`. `opt1`: don't persist the cleaned trips ([`experiments/LOG.md`](experiments/LOG.md) → Optimisations). |
+| `--skip-opts` | no | none (every applied optimisation on) | optimisations to switch off, comma-separated OPT ids, so before/after runs use the same jar. Recorded in `run.json` as `skip_opts`. The ids are the applied OPTs in [`experiments/LOG.md`](experiments/LOG.md) → Optimisations; `opt1` was reverted, so it is no longer accepted. |
 | `--run-id` | no | none | turns profiling on: `<local\|docker\|di>-<yyyymmdd>-<nn>`, e.g. `local-20261105-01`. Never reuse one: a run folder that already exists exits with code 2. |
 | `--runs-dir` | no | `experiments/runs` | where run folders go (`/runs` in Docker). Only with `--run-id`. |
 | `--git-sha` | no | none | the commit that ran, recorded in `run.json`: pass `$(git rev-parse --short HEAD)`. Only with `--run-id`. |
@@ -245,7 +245,7 @@ How to reproduce each experiment: every run is logged with its exact arguments i
 
 All environments are recorded in the `experiments/LOG.md` environment table.
 
-**Non-default `spark.*` properties:** none for tuning yet. List each one here with the optimisation (OPT id) it belongs to. OPT-1 (persisting the cleaned trips) is a code change toggled by `--skip-opts opt1`, not a `spark.*` setting.
+**Non-default `spark.*` properties:** none for tuning yet. List each one here with the optimisation (OPT id) it belongs to.
 
 | Property | Value | Why (OPT id) |
 |---|---|---|

@@ -8,7 +8,6 @@ import com.radeshgovind.anomalies.fareAnomalyRates
 import com.radeshgovind.clean.cleaningStats
 import com.radeshgovind.clean.removeInvalidTrips
 import com.radeshgovind.cli.Operation
-import com.radeshgovind.cli.Optimisation
 import com.radeshgovind.cli.PipelineArgs
 import com.radeshgovind.demand.DemandColumns.PICKUP_BOROUGH
 import com.radeshgovind.demand.DemandColumns.TRIP_COUNT
@@ -41,35 +40,16 @@ import org.apache.spark.sql.functions.count
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.sum
 import org.apache.spark.sql.functions.`when`
-import org.apache.spark.storage.StorageLevel
 import java.nio.file.Path
 
 // The story of the pipeline. Spark actions (write, show, collect) happen only in this file.
 // Each operation's one write runs inside profiler.profile("<op>") { … }, and nothing else does.
-// OPT-1 (H1): with two or more readers, the cleaned trips are persisted, so the first reader's scan fills the cache
-// and the others read it. M1 needs the invalid rows, so it keeps its own scan. --skip-opts opt1 restores the
-// baseline, where every operation re-reads and re-cleans the input.
+// Nothing is cached yet: each operation re-reads and re-cleans the input (the baseline).
 fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Found) {
     val profiler = profilerFor(spark, args)
     val trips = spark.loadTrips(tripFiles, args.fraction).enforceSchema()
     if (Operation.M1 in args.operations) writeCleaningStats(trips, args.outputOf(Operation.M1), profiler)
     val cleaned = trips.removeInvalidTrips()
-    val cachesCleaned = isCleanedCacheWorthIt(args)
-    if (cachesCleaned) cleaned.persist(StorageLevel.MEMORY_AND_DISK())
-    writeCleanedOperations(spark, cleaned, args, profiler)
-    if (cachesCleaned) cleaned.unpersist()
-    profiler.finish()
-}
-
-// A single reader gains nothing from a cache: it would only pay to build it.
-private fun isCleanedCacheWorthIt(args: PipelineArgs): Boolean =
-    args.isApplied(Optimisation.OPT1) && args.operations.count(CLEANED_READERS::contains) >= MIN_READERS_TO_CACHE
-
-private val CLEANED_READERS = setOf(Operation.M2, Operation.M3, Operation.O1, Operation.O3)
-private const val MIN_READERS_TO_CACHE = 2
-
-// Every operation that reads the cleaned trips. With OPT-1 the first one selected (M2 by default) fills the cache.
-private fun writeCleanedOperations(spark: SparkSession, cleaned: Dataset<Row>, args: PipelineArgs, profiler: Profiler) {
     if (Operation.M2 in args.operations) {
         writeTemporalDemand(cleaned, spark.loadZones(args.input), args.outputOf(Operation.M2), profiler)
     }
@@ -83,6 +63,7 @@ private fun writeCleanedOperations(spark: SparkSession, cleaned: Dataset<Row>, a
         val grid = spark.zoneHourGrid(args.months)
         writeDemandForecast(cleaned, grid, spark.loadZones(args.input), args.outputOf(Operation.O3), profiler)
     }
+    profiler.finish()
 }
 
 // No --run-id → NoProfiler, which only runs the block: the measured code path is the same either way.
