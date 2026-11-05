@@ -20,14 +20,6 @@ enum class Operation(val readsZones: Boolean) {
 
         fun parse(raw: String): Operation? = entries.find { it.name.equals(raw.trim(), ignoreCase = true) }
 
-        fun parseList(raw: String): Set<Operation>? = raw.split(",").map(::parse).toSetOrNull()
-
-        private fun List<Operation?>.toSetOrNull(): Set<Operation>? = if (null in
-            this
-        ) {
-            null
-        } else {
-            filterNotNull().toSet()
-        }
+        fun parseList(raw: String): Set<Operation>? = parseCommaList(raw, ::parse)
     }
 }
