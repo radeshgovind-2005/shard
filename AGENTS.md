@@ -48,7 +48,7 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
 ```
 
 - `Main.kt`: `com.radeshgovind.MainKt`, the application and jar entry point. It owns the exit codes: 0 ok, 2 bad arguments or missing files, 1 a failure inside Spark.
-- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`, `O1`, `O3`), `ProfilingArgs.kt` (`--run-id`, `--runs-dir`, `--git-sha`; null when profiling is off)
+- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`, `O1`, `O3`), `Optimisation.kt` (`--skip-opts`: the OPT ids to switch off, all on by default; OPT-1 was reverted), `CommaList.kt` (the shared `a,b,c` parser), `ProfilingArgs.kt` (`--run-id`, `--runs-dir`, `--git-sha`; null when profiling is off)
 - `ingest/`:
   - `TripFiles.kt`: the exact Parquet path for each month, with no globs, as `Found` or `Missing`
   - `LoadTrips.kt`: reads those files, adds `source_year`/`source_month` from each file's name (`_metadata.file_path`, right on the scan), then samples with a fixed seed (42) when `--fraction` < 1
@@ -97,7 +97,7 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
   - `RunReport.kt`: writes `run.json`, `stages.json` and `plans/` with Jackson (from Spark's classpath, snake_case), prints the summary table, and names the `eventlog/` folder
   - `RunId.kt`: `^(local|docker|di)-\d{8}-\d{2}$`
 - `SparkSessions.kt`: uses `local[*]` unless `spark-submit` already set `spark.master`. The only other `spark.*` config is the event log, and only for profiled runs.
-- `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**. Each operation's write is wrapped in `profiler.profile("<op>") { … }`; read-backs and prints stay outside the block.
+- `Pipeline.kt`: `runPipeline`, the story of the pipeline and **the only place with Spark actions**. Each operation's write is wrapped in `profiler.profile("<op>") { … }`; read-backs and prints stay outside the block. Optimisations stay visible here too, each behind `args.isApplied(Optimisation.OPTn)`.
 - Build: `build.gradle.kts` (Spark 4.2.1 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
 - Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
 - Cluster: `docker/docker-compose.yml` (standalone Spark 4.2.1 / Java 21; `data/` → `/data` read-only, `build/libs/` → `/jars`, `output/` → `/output`, `experiments/runs/` → `/runs` on the master only)

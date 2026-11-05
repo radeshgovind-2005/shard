@@ -11,7 +11,7 @@ sealed interface ArgsParse {
 
 const val USAGE =
     "usage: shard --input <dir> --output <dir> [--years YYYY|YYYY-YYYY|YYYY-MM] [--fraction (0,1]]" +
-        " [--ops m1,m2,m3,o1,o3] [--run-id <env>-<yyyymmdd>-<nn> [--runs-dir <dir>] [--git-sha <sha>]]"
+        " [--ops m1,m2,m3,o1,o3] [--skip-opts <opt ids>] [--run-id <env>-<yyyymmdd>-<nn> [--runs-dir <dir>] [--git-sha <sha>]]"
 
 fun parseArgs(raw: Array<String>): ArgsParse {
     val pairs = raw.toList().chunked(2)
@@ -24,10 +24,11 @@ private const val OUTPUT = "--output"
 private const val YEARS = "--years"
 private const val FRACTION = "--fraction"
 private const val OPS = "--ops"
+private const val SKIP_OPTS = "--skip-opts"
 private const val RUN_ID = "--run-id"
 private const val RUNS_DIR = "--runs-dir"
 private const val GIT_SHA = "--git-sha"
-private val KNOWN_FLAGS = setOf(INPUT, OUTPUT, YEARS, FRACTION, OPS, RUN_ID, RUNS_DIR, GIT_SHA)
+private val KNOWN_FLAGS = setOf(INPUT, OUTPUT, YEARS, FRACTION, OPS, SKIP_OPTS, RUN_ID, RUNS_DIR, GIT_SHA)
 
 private const val DEFAULT_YEARS = "2025"
 private const val DEFAULT_RUNS_DIR = "experiments/runs"
@@ -51,9 +52,10 @@ private fun fromFlags(flags: Map<String, String>): ArgsParse {
     val months = MonthRange.parse(flags[YEARS] ?: DEFAULT_YEARS) ?: return invalid(YEARS_RULE)
     val fraction = flags[FRACTION]?.let { Fraction.parse(it) ?: return invalid(FRACTION_RULE) } ?: Fraction.WHOLE
     val operations = flags[OPS]?.let { Operation.parseList(it) ?: return invalid(OPS_RULE) } ?: Operation.ALL
+    val skipped = flags[SKIP_OPTS]?.let { Optimisation.parseList(it) ?: return invalid(SKIP_OPTS_RULE) } ?: emptySet()
     profilingProblem(flags)?.let { return invalid(it) }
     return ArgsParse.Parsed(
-        PipelineArgs(Path.of(input), Path.of(output), months, fraction, operations, profilingFrom(flags)),
+        PipelineArgs(Path.of(input), Path.of(output), months, fraction, operations, profilingFrom(flags), skipped),
     )
 }
 
@@ -76,5 +78,7 @@ private fun invalid(reason: String): ArgsParse = ArgsParse.Invalid(reason)
 private const val YEARS_RULE = "$YEARS must be YYYY, YYYY-YYYY or YYYY-MM, from ${MonthRange.FIRST_SUPPORTED_YEAR} on"
 private const val FRACTION_RULE = "$FRACTION must be a number in (0, 1]"
 private const val OPS_RULE = "$OPS must be a comma-separated list of m1, m2, m3, o1, o3"
+private val SKIP_OPTS_RULE = "$SKIP_OPTS must be a comma-separated list of applied OPT ids: " +
+    Optimisation.entries.joinToString(", ") { it.id }.ifEmpty { "none yet" }
 private const val RUN_ID_RULE = "$RUN_ID must be <local|docker|di>-<yyyymmdd>-<nn>, e.g. local-20261105-01"
 private const val GIT_SHA_RULE = "$GIT_SHA must be 7–40 lowercase hex digits (git rev-parse --short HEAD)"

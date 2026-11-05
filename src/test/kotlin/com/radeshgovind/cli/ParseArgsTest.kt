@@ -45,6 +45,23 @@ class ParseArgsTest {
     }
 
     @Test
+    fun `applies every optimisation by default and records none skipped`() {
+        val args = parsed()
+        assertEquals(emptySet(), args.skippedOptimisations)
+        assertEquals("", args.asRecord()["skip_opts"])
+    }
+
+    @Test
+    fun `rejects unknown optimisation ids and an empty or missing list`() {
+        listOf("opt1", "opt9", "h1", "1", "opt9,,opt9", "opt9,").forEach {
+            assertContains(reasonWithRequired("--skip-opts", it), "--skip-opts", message = "for --skip-opts $it")
+        }
+        assertContains(reasonWithRequired("--skip-opts", ""), "needs a value")
+        assertContains(reasonWithRequired("--skip-opts"), "needs a value")
+        assertContains(reasonWithRequired("--skip-opts", "--ops", "m1"), "needs a value")
+    }
+
+    @Test
     fun `requires input and output`() {
         assertContains(reasonFor("--output", "out"), "--input")
         assertContains(reasonFor("--input", "data"), "--output")

@@ -1,0 +1,55 @@
+# zstd -dc /private/tmp/claude-501/opt1-check/local-20261105-81/eventlog/*/events_* | python3 -I experiments/observations/baseline-20261105/scripts/eventlog.py
+executors (cores): {'driver': 10}
+stage group  exec tasks conc span_s      recRead    shRecRead executors
+    0 -         -     1    1   0.24            0            0 {'driver': 1}
+    1 m1-a8ebbceb    0    10   10   1.61    3,475,226            0 {'driver': 10}
+    3 m1-a8ebbceb    0     1    1   0.45            0            4 {'driver': 1}
+    4 -         -     1    1   0.01            0            0 {'driver': 1}
+    5 -         1     1    1   0.03            1            0 {'driver': 1}
+    6 m2-e8c5792d    2     1    1   0.05          265            0 {'driver': 1}
+    7 m2-e8c5792d    2    10   10   1.03    3,475,226            0 {'driver': 10}
+    9 m2-e8c5792d    2     1    1   0.26            0        2,855 {'driver': 1}
+   10 -         -     1    1   0.01            0            0 {'driver': 1}
+   11 -         3     6    6   0.07          815            0 {'driver': 6}
+   13 -         3     1    1   0.02            0           12 {'driver': 1}
+   14 m3-cc811d8e    4     1    1   0.01          265            0 {'driver': 1}
+   15 m3-cc811d8e    4    10   10   1.26    3,475,226            0 {'driver': 10}
+   17 m3-cc811d8e    4     1    1   0.05            0          987 {'driver': 1}
+   20 m3-cc811d8e    4     1    1   0.10            0          257 {'driver': 1}
+   24 m3-cc811d8e    4     1    1   0.07            0          257 {'driver': 1}
+   29 m3-cc811d8e    4     1    1   0.06            0          257 {'driver': 1}
+   35 m3-cc811d8e    4     1    1   0.14            0          257 {'driver': 1}
+   36 -         -     1    1   0.01            0            0 {'driver': 1}
+   37 -         5     1    1   0.04          257            0 {'driver': 1}
+   39 -         5     1    1   0.02            0            7 {'driver': 1}
+   40 o1-c12a970c    6     1    1   0.01          265            0 {'driver': 1}
+   41 o1-c12a970c    6    10   10   0.88    3,475,226            0 {'driver': 10}
+   43 o1-c12a970c    6    11   11   1.37            0    3,203,825 {'driver': 11}
+   46 o1-c12a970c    6     1    1   0.06            0          481 {'driver': 1}
+   47 -         -     1    1   0.01            0            0 {'driver': 1}
+   48 -         7     1    1   0.01           52            0 {'driver': 1}
+   49 -         8     1    1   0.03           52            0 {'driver': 1}
+   51 -         8     1    1   0.02            0            3 {'driver': 1}
+   52 o3-40571ab9    9     1    1   0.01          265            0 {'driver': 1}
+   53 o3-40571ab9    9    10   10   0.01          263            0 {'driver': 10}
+   54 o3-40571ab9    9    10   10   0.73    3,475,226            0 {'driver': 10}
+   56 o3-40571ab9    9     1    1   0.09            0      136,466 {'driver': 1}
+   57 o3-40571ab9    9    10   10   0.43          744            0 {'driver': 10}
+   58 o3-40571ab9    9    10   10   0.07          744            0 {'driver': 10}
+   60 o3-40571ab9    9     3    3   0.85            0      195,672 {'driver': 3}
+   61 -         -     1    1   0.01            0            0 {'driver': 1}
+   62 -        10     3    3   0.12      195,672            0 {'driver': 3}
+   64 -        10     1    1   0.01            0           15 {'driver': 1}
+
+SQL scan metrics per execution id
+  exec 0: {'number of files read': 1, 'metadata time': 3, 'size of files read': 59158238, 'number of written files': 1}
+  exec 1: {'number of files read': 1, 'metadata time': 0, 'size of files read': 2958}
+  exec 2: {'number of files read': 2, 'metadata time': 0, 'size of files read': 59170569, 'number of written files': 6}
+  exec 3: {'number of files read': 6, 'metadata time': 0, 'size of files read': 34432}
+  exec 4: {'number of files read': 2, 'metadata time': 0, 'size of files read': 59170569, 'number of written files': 1}
+  exec 5: {'number of files read': 1, 'metadata time': 0, 'size of files read': 19147}
+  exec 6: {'number of files read': 2, 'metadata time': 0, 'size of files read': 59170569, 'number of written files': 1}
+  exec 7: {'number of files read': 1, 'metadata time': 0, 'size of files read': 2908}
+  exec 8: {'number of files read': 1, 'metadata time': 0, 'size of files read': 2908}
+  exec 9: {'number of files read': 2, 'metadata time': 0, 'size of files read': 59170569, 'number of written files': 3}
+  exec 10: {'number of files read': 3, 'metadata time': 0, 'size of files read': 941907}
