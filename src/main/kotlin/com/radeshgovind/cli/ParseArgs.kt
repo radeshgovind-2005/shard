@@ -11,7 +11,7 @@ sealed interface ArgsParse {
 
 const val USAGE =
     "usage: shard --input <dir> --output <dir> [--years YYYY|YYYY-YYYY|YYYY-MM] [--fraction (0,1]]" +
-        " [--ops m1,m2,m3,o3] [--run-id <env>-<yyyymmdd>-<nn> [--runs-dir <dir>] [--git-sha <sha>]]"
+        " [--ops m1,m2,m3,o1,o3] [--run-id <env>-<yyyymmdd>-<nn> [--runs-dir <dir>] [--git-sha <sha>]]"
 
 fun parseArgs(raw: Array<String>): ArgsParse {
     val pairs = raw.toList().chunked(2)
@@ -75,6 +75,6 @@ private fun invalid(reason: String): ArgsParse = ArgsParse.Invalid(reason)
 
 private const val YEARS_RULE = "$YEARS must be YYYY, YYYY-YYYY or YYYY-MM, from ${MonthRange.FIRST_SUPPORTED_YEAR} on"
 private const val FRACTION_RULE = "$FRACTION must be a number in (0, 1]"
-private const val OPS_RULE = "$OPS must be a comma-separated list of m1, m2, m3, o3"
+private const val OPS_RULE = "$OPS must be a comma-separated list of m1, m2, m3, o1, o3"
 private const val RUN_ID_RULE = "$RUN_ID must be <local|docker|di>-<yyyymmdd>-<nn>, e.g. local-20261105-01"
 private const val GIT_SHA_RULE = "$GIT_SHA must be 7–40 lowercase hex digits (git rev-parse --short HEAD)"

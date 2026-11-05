@@ -1,5 +1,10 @@
 package com.radeshgovind
 
+import com.radeshgovind.anomalies.AnomalyColumns.ANOMALY_RATE
+import com.radeshgovind.anomalies.AnomalyColumns.DAY_TYPE
+import com.radeshgovind.anomalies.AnomalyColumns.FLAGGED_TRIPS
+import com.radeshgovind.anomalies.AnomalyColumns.TRIPS
+import com.radeshgovind.anomalies.fareAnomalyRates
 import com.radeshgovind.clean.cleaningStats
 import com.radeshgovind.clean.removeInvalidTrips
 import com.radeshgovind.cli.Operation
@@ -12,6 +17,7 @@ import com.radeshgovind.forecast.ForecastColumns.IS_DEMAND_SPIKE
 import com.radeshgovind.forecast.ForecastColumns.LAG_4W_TRIP_COUNT
 import com.radeshgovind.forecast.demandForecast
 import com.radeshgovind.forecast.zoneHourGrid
+import com.radeshgovind.ingest.TripColumns.PAYMENT_TYPE
 import com.radeshgovind.ingest.TripColumns.SOURCE_YEAR
 import com.radeshgovind.ingest.TripFiles
 import com.radeshgovind.ingest.ZoneColumns.SERVICE_ZONE
@@ -49,6 +55,9 @@ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Fo
     }
     if (Operation.M3 in args.operations) {
         writeZoneStatistics(cleaned, spark.loadZones(args.input), args.outputOf(Operation.M3), profiler)
+    }
+    if (Operation.O1 in args.operations) {
+        writeFareAnomalyRates(cleaned, spark.loadZones(args.input), args.outputOf(Operation.O1), profiler)
     }
     if (Operation.O3 in args.operations) {
         val grid = spark.zoneHourGrid(args.months)
@@ -112,6 +121,28 @@ private fun printZoneTotals(spark: SparkSession, out: Path) {
         .orderBy(asc_nulls_last(PICKUP_BOROUGH))
         .show(false)
 }
+
+// D21: only the rate table is written (at most 2 day types × 8 payment codes, null included, × 6 boroughs = 96 rows),
+// never the flagged trips. No partitionBy: the table is tiny.
+private fun writeFareAnomalyRates(cleaned: Dataset<Row>, zones: Dataset<Row>, out: Path, profiler: Profiler) {
+    profiler.profile("o1") { cleaned.fareAnomalyRates(zones).write().mode(SaveMode.Overwrite).parquet(out.toString()) }
+    printAnomalyRates(cleaned.sparkSession(), out)
+}
+
+// Reads back the written rate table (under 100 rows): the whole table, then the trips, flagged trips and rate per day
+// type with the total on the last row (day_type = null). The total must equal M1's kept_trips.
+// Outside the profile block on purpose.
+private fun printAnomalyRates(spark: SparkSession, out: Path) {
+    val rates = spark.read().parquet(out.toString())
+    rates.orderBy(col(DAY_TYPE), col(PICKUP_BOROUGH), asc_nulls_last(PAYMENT_TYPE)).show(MAX_RATE_ROWS, false)
+    rates.rollup(DAY_TYPE)
+        .agg(sum(TRIPS).alias(TRIPS), sum(FLAGGED_TRIPS).alias(FLAGGED_TRIPS))
+        .withColumn(ANOMALY_RATE, col(FLAGGED_TRIPS).divide(col(TRIPS)))
+        .orderBy(asc_nulls_last(DAY_TYPE))
+        .show(false)
+}
+
+private const val MAX_RATE_ROWS = 200
 
 // The grid (zones 1–263 × every hour of --years, D25) is a parameter, so its size is visible here. Not partitioned.
 private fun writeDemandForecast(

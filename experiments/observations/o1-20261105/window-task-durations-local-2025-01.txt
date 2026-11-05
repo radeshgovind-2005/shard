@@ -1,0 +1,14 @@
+# Window stage (stage 9 of local-20261105-91, 2025-01, local[*]): one line per task, from the event log.
+# zstd -dc <scratch>/runs/local-20261105-91/eventlog/eventlog_v2_*/events_1_*.zstd | jq -r 'select(.Event=="SparkListenerTaskEnd" and ."Stage ID"==9) | [."Task Info"."Index", (."Task Info"."Finish Time" - ."Task Info"."Launch Time"), (."Task Metrics"."Shuffle Read Metrics"."Local Bytes Read" + ."Task Metrics"."Shuffle Read Metrics"."Remote Bytes Read"), ."Task Metrics"."Shuffle Read Metrics"."Total Records Read"] | @tsv' | sort -n
+# task_index	duration_ms	shuffle_read_bytes	records_read
+0	1562	3699869	314933
+1	1527	3653551	307293
+2	1526	3568585	302213
+3	1550	3642061	310699
+4	1543	3650401	308951
+5	1507	3579071	301453
+6	1482	3482801	291766
+7	1562	3767801	317672
+8	1554	3664349	310969
+9	1560	3606210	308402
+10	152	1523299	129474

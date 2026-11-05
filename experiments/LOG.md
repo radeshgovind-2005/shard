@@ -161,9 +161,69 @@ The criteria overlap (D5): in January they sum to 291,491, against 271,401 remov
 
 **Setup of these runs.** The worktree has no `data/`, so every run read the main checkout's `data/`. For Docker, the M3 jar was `docker cp`'d into the master container (`/tmp/shard-m3.jar`) instead of overwriting the main checkout's `build/libs/shard-all.jar`, and the output went to `/output/dev-m3` (the main checkout's `output/dev-m3/`, gitignored).
 
-### O3: demand forecasting features (2026-11-05, uncommitted O3 working tree on `361b669`)
+### O1: fare anomaly detection (2026-11-05, uncommitted O1 working tree on `361b669`)
 
-**Provenance.** No run-ids in LOG → Runs: development runs on uncommitted code. As for M3, the post-run plan and stage table come from a throwaway profiled run (`--run-id local-20261105-91 --runs-dir <scratchpad>`, `local-20261105-92` for 2025), used only because the profiler writes the final (post-AQE) plan without a code change. Its times are **not** a baseline measurement. Raw evidence, with the command for each file, goes in [`observations/o3-20261105/`](observations/o3-20261105/README.md).
+**Provenance.** No run-ids in LOG → Runs: development runs on uncommitted code, all run by Claude. The post-run plans and stage tables come from throwaway profiled runs (`local-20261105-91` for 2025-01, `local-20261105-92` for 2025, `docker-20261105-91` for 2025-01 on Docker), with their run folders in a scratch folder or inside the container, not in `experiments/runs/`. They were used only because the profiler writes the final (post-AQE) plan and the stage metrics without a code change. Their times are **not** baseline measurements. Raw evidence, with the command for each file, is in [`observations/o1-20261105/`](observations/o1-20261105/README.md).
+
+**What O1 computes** (report §2; decisions D15–D22 in README → O1): cleaned trips → `hour_of_day`, `day_of_week` (`withTripTimes`, NYC wall-clock) → `fare_per_km = fare_amount / (1.609344 × trip_distance)` → `avg` and `stddev_samp` of `fare_per_km` over `Window.partitionBy(PULocationID, hour_of_day)` (the whole bucket, the trip included) → `is_fare_anomaly = fare_per_km > mean + 3σ` (null without a σ) → borough join (`withPickupBorough`) → `day_type` (weekend = `dayofweek` ∈ {1, 7}) → `groupBy(day_type, payment_type, pickup_borough)` with `trips`, `flagged_trips`, `anomaly_rate` → Parquet in `<output>/o1/`.
+
+**Correctness: verified.** Σ `trips` = M1 `kept_trips`, `flagged_trips` ≤ `trips` in every row, and Σ `flagged_trips` equals an independent re-computation in plain SQL (`bucket-diagnostics.sql`: M1's criteria and the same window written from scratch, run by `spark-sql` in the Docker master).
+
+| Where | `--years` | Σ `trips` | M1 `kept_trips` | Σ `flagged_trips` | SQL flagged | flagged share | rows | evidence |
+|---|---|---|---|---|---|---|---|---|
+| local `local[*]` | 2025-01 | **3,203,825** ✅ | 3,203,825 | 14,506 | 14,506 ✅ | 0.453 % | 52 | `console-local-2025-01.txt`, `bucket-diagnostics-2025-01.txt` |
+| Docker, 2 workers | 2025-01 | **3,203,825** ✅ | 3,203,825 | 14,506 | | | 52 | `console-docker-2025-01.txt`: every table identical to local, line by line |
+| local `local[*]` | 2025 | **43,599,832** ✅ | 43,599,832 | 172,907 | 172,907 ✅ | 0.397 % | 60 | `console-local-2025.txt`, `bucket-diagnostics-2025.txt` |
+
+- The rate table holds `payment_type` 0–4 (and one trip with 5 in 2025); no null `payment_type` survives M1 in 2025, and there is no 6.
+- **Unit tests** (`anomalies/FareAnomaliesTest`, 8 tests; `cli/ParseArgsTest` +1; `make check` green): exact schema; an 11-trip bucket with hand-checked mean (200/11 $/mi) and σ (√89100/11), whose one outlier is flagged at 3.015 σ; a 10-trip bucket whose 1,000,000 fare is *not* flagged (Samuelson cap 2.846 σ), and the bound itself for n = 2..11; a single-trip bucket with a null σ and a null flag, kept apart from another zone at the same hour; the weekend edges (Fri 23:59 weekday, Sat 00:00 and Sun 23:59 weekend, Mon 00:00 weekday); the rate table per (day type, payment type, borough) with a null payment type kept as its own group; Σ `trips` = input trips and flagged ≤ trips.
+
+**The statistics** (report §2 and §6; `bucket-diagnostics-*.txt`, queries 1–5):
+
+| | 2025-01 | 2025 |
+|---|---|---|
+| buckets | 5,535 | 6,102 (of 6,312 possible) |
+| buckets with n ≤ 10 (trips in them) | 1,788 (8,317) | 418 (1,788) |
+| of which n = 1, null σ (trips) | 315 | 89 |
+| flags in n ≤ 10 buckets | **0** (Samuelson) | **0** |
+| flagged share | 0.453 % | 0.397 % |
+| trips < 0.1 mi: trips, flagged, share of all flags | 16,298 · 10,854 · 74.8 % | 287,120 · 163,448 · **94.5 %** |
+| `fare_per_km` p50 / p99 / p99.9 / max ($/km) | 4.46 / 15.5 / 1,308 / 335,297 | 4.49 / 24.0 / 1,823 / 335,297 |
+| median bucket σ / mean | 7.5 | 9.1 |
+
+- **Against the bounds.** The flagged share (0.40 % for 2025) is 3× what a normal distribution puts above mean + 3σ (0.135 %) and far below Cantelli's distribution-free cap, 1/(1 + 3²) = 10 %.
+- **Samuelson (D18) holds on real data.** No bucket with 10 trips or fewer flags anything. On 2025 these are 418 buckets but only 1,788 trips (0.004 %), so the rule matters for coverage of zone-hours, not for the rate. On one month it covers 1,788 buckets, a third of them.
+- **Heavy tails decide the flags.** `fare_per_km` has a tail to 335,297 $/km: a fare over a distance of a few hundredths of a mile. The typical bucket's σ is 9 × its mean, so mean + 3σ sits far above every normal fare, and the flag fires almost only on sub-0.1-mile trips: 94.5 % of 2025's flags, where 57 % of those trips are flagged. Above 1 mile, 1,114 of 34.4 M trips are flagged. So O1 as specified detects "near-zero recorded distance" more than "overcharged trip". Report §6 limitation; a robust variant (median/MAD, or a minimum distance) would compute something else, so the spec's definition stays.
+- **Weekday vs weekend** (2025, `console-local-2025.txt`): 0.489 % of weekday trips are flagged, 0.169 % of weekend trips. Most of the gap is one payment code: weekday `payment_type` 0 (flex fare) has 117,935 flags out of 5,468,781 trips (2.16 %, 68 % of all flags), against 0.16 % on the weekend. Card (1) is 0.09 % / 0.13 % and cash (2) 0.26 % / 0.31 %. By borough, Manhattan is 0.45 % weekday / 0.11 % weekend. Why flex-fare weekday trips concentrate the flags (likely tiny distances) wasn't checked.
+
+**Post-run plan** (`plan-o1-final-local-2025-01.txt` and `…-2025.txt`, `isFinalPlan=true`). Report §2 material:
+- **One window `Exchange`, carrying every trip:** `hashpartitioning(PULocationID, hour_of_day, 200)` directly over the scan-and-clean stage, with no partial aggregate in front of it (unlike M2 and M3). Catalyst pruned it to 5 columns: `PULocationID`, `payment_type`, `day_of_week`, `hour_of_day`, `fare_per_km` (`duration_min` from `withTripTimes` and the unused `bucket_trips` count are gone). About 11.8 B per trip: 36.1 MiB for 2025-01, 498.8 MiB for 2025.
+- Then `Sort (PULocationID, hour_of_day)` → `Window` (mean and σ, `RowFrame` unbounded both ways) → the zone CSV as `BroadcastHashJoin … BuildRight` (12,331 B, auto-broadcast as in M2) in the same stage → partial aggregate → a small second `Exchange hashpartitioning(day_type, payment_type, pickup_borough, 200)` → final aggregate and write.
+- Both `Exchange`s read through `AQEShuffleRead coalesced`. **AQE coalesced the 200 window partitions to 11 tasks locally and 4 on Docker**, sized for parallelism (`ShufflePartitionsUtil`: advisory 64 MiB, but `parallelismFirst` targets about total ÷ cores).
+- Profiler summary (not measurements): 2025-01 local, o1 4 stages / 23 tasks; 2025 local, 4 stages / 25 tasks, 498.8 MiB shuffle, **456.4 MiB spilled to disk**.
+
+**Skew evidence** (for spark-profiler; per-task numbers from the event logs, `window-task-durations-*.txt`, `stages-*.json`):
+
+| | 2025-01 local | 2025-01 Docker | 2025 local |
+|---|---|---|---|
+| window-stage tasks | 11 | 4 | 11 |
+| task skew (max / median) | 1.01 | 1.00 | 1.03 |
+| records per task | 291,766–317,672 (+ one of 129,474) | | 4.05–4.37 M (+ one of 1.74 M) |
+| spill per task (memory / disk) | none | none | 218–336 MB / 47–49 MB, in 10 of 11 tasks |
+| rows per hash partition before AQE (of 200): median, max, max/median | 15,227 · 49,349 · 3.24 | | 209,798 · 648,593 · 3.09 |
+| largest bucket | zone 161 at 18h, 15,821 trips (0.49 %) | | zone 161 at 18h, 169,582 trips (0.39 %) |
+
+- **The predicted straggler doesn't appear with default settings.** The biggest bucket is under 0.5 % of the trips; 881 buckets of more than 10k trips hold 87 % of 2025's trips, and the hash spreads them over the 200 partitions with a 3.1× max/median. AQE then merges about 18 partitions per task, which averages the skew out: every window task does the same work.
+- **What does show is volume and spill:** every cleaned trip is shuffled (≈ 0.5 GB for 2025) and then sorted per task, and 10 of 11 window tasks spill. In the 2025 window stage, executor CPU is 63 s of 101 s run time.
+
+**Leads for the profiler** (each needs a profiled run first):
+- **L4 again.** Nothing is cached, so with every operation selected, O1's job scans and cleans the trip Parquet once more.
+- **L10. The window shuffles and sorts every trip.** No partial aggregate shrinks the data before the `Exchange`, and on 2025 the sort spills in almost every task. Candidate rewrite: `groupBy(PULocationID, hour_of_day)` for count/mean/σ (at most 6,312 rows, partial aggregation before a tiny shuffle), then broadcast the bucket stats back to the trips: no trip-sized shuffle, no sort, no spill. Results must stay identical (counts exact; flags identical, mean and σ within the 10⁻¹² relative tolerance).
+- **L11. Skew is latent, not gone.** The bucket skew is real before AQE (3.1× rows per hash partition) and is hidden by coalescing about 18 partitions per task. It would show with more shuffle partitions or more cores (DI cluster), or with AQE's coalescing off. Worth one profiled run with `spark.sql.adaptive.coalescePartitions.enabled=false` to measure it, and for the scalability section: as cores grow, fewer partitions get merged per task. AQE's skew handling only covers joins, so a window can't be split.
+
+### O3: demand forecasting features (2026-11-05, branch `feat/o3-demand-forecasting` with main `9b4cc8a` merged in)
+
+**Provenance.** No run-ids in LOG → Runs: development runs on uncommitted code. As for M3, the post-run plan and stage table come from a throwaway profiled run (`--run-id local-20261105-93 --runs-dir <scratchpad>`, `local-20261105-94` for 2025; O1 used -91 and -92), used only because the profiler writes the final (post-AQE) plan without a code change. Its times are **not** a baseline measurement. Raw evidence, with the command for each file, goes in [`observations/o3-20261105/`](observations/o3-20261105/README.md).
 
 **What O3 computes** (report §2; decisions D23–D30 in README → O3):
 1. Cleaned trips → `hour_index` (zone-free, D24) → `groupBy(PULocationID, hour_index)`.

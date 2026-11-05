@@ -11,7 +11,8 @@ Operations:
 - **M1 — Ingestion & cleaning:** schema enforcement, invalid-record filtering, per-year removal statistics
 - **M2 — Temporal demand:** trips, mean fare, duration and distance per `(borough, day_of_week, hour)`, written partitioned by borough
 - **M3 — Zone statistics:** monthly per-zone fare/distance stats, and window functions for volume rank, rolling 3-month share and deviation flags
-- **Optional (≥ 2 of O1–O4):** TODO, choose and list them here, with the bottleneck each one exposes
+- **O1 — Fare anomaly detection:** flags trips whose fare per km is above their `(pickup zone, hour)` bucket's mean + 3σ, then compares weekday vs weekend anomaly rates by payment type and borough. Bottleneck: **window shuffle and skew**. The bucket statistics are a window over every trip, so all trips are shuffled and sorted (≈ 0.5 GB for 2025, spilling), and the bucket sizes are skewed (3.1× rows per hash partition); AQE splits skewed joins, not windows, and only its partition coalescing currently evens the tasks out.
+- **O3 — Demand forecasting features:** per `(zone, day_of_week, hour)` historical mean, variance and a 4-week lag, with a demand index and `service_zone`. Bottleneck: **join strategy**. The lag is a self-join too big to broadcast, so it runs as a SortMergeJoin, on top of a zero-filled hourly grid.
 
 Spec: [`docs/Project_Description.md`](docs/Project_Description.md).
 
@@ -91,12 +92,12 @@ shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <lis
 | `--output` | yes | – | folder for results (`output` locally, `/output` in Docker); each operation writes `<output>/<op>/` |
 | `--years` | no | `2025` | `YYYY` (one year), `YYYY-YYYY` (whole years), or `YYYY-MM` (one month). 2011 onwards, because 2009–2010 have no zone IDs. |
 | `--fraction` | no | `1.0` | share of trips to keep, 0 < f ≤ 1, sampled with a fixed seed (42), so the same fraction keeps the same rows every run |
-| `--ops` | no | `m1,m2,m3,o3` | which results to write, comma-separated |
+| `--ops` | no | every operation (`m1,m2,m3,o1,o3`) | which results to write, comma-separated |
 | `--run-id` | no | none | turns profiling on: `<local\|docker\|di>-<yyyymmdd>-<nn>`, e.g. `local-20261105-01`. Never reuse one: a run folder that already exists exits with code 2. |
 | `--runs-dir` | no | `experiments/runs` | where run folders go (`/runs` in Docker). Only with `--run-id`. |
 | `--git-sha` | no | none | the commit that ran, recorded in `run.json`: pass `$(git rev-parse --short HEAD)`. Only with `--run-id`. |
 
-Exit codes: `0` success, `2` bad arguments, missing input files or a reused run id (checked before Spark starts), `1` a failure while Spark runs. The input check covers every requested month's trip file and, when M2, M3 or O3 is requested, `taxi_zone_lookup.csv`.
+Exit codes: `0` success, `2` bad arguments, missing input files or a reused run id (checked before Spark starts), `1` a failure while Spark runs. The input check covers every requested month's trip file and, when M2, M3, O1 or O3 is requested, `taxi_zone_lookup.csv`.
 
 ### Profiling
 
@@ -152,6 +153,22 @@ Starts from M1's cleaned trips and groups them by `PULocationID` and month: `tri
 - **D14: what the flag can show on 2025 alone.** It catches abrupt changes against a zone's last quarter (events, closures, a collapse in volume). It can't separate seasonality (no previous year) or month length (February has 28 days, about −10 %), and a σ from 2–3 points is noisy, so expect false positives. The first month that can be flagged is March; full 3-month baselines start in April. Measured on 2025: 46 % of the rows with a baseline are flagged, mostly as city-wide swings (almost every zone in March against a January–February baseline, a downward August), so read a flag as "unusual for this zone given the last quarter", not as an event (LOG → Observations → M3). The count-based flag is kept on purpose, because it is what the spec asks for. A share-of-borough flag would cancel city-wide swings, but it would compute something else.
 
 Output: `<output>/m3/` (Parquet, not partitioned; the spec asks for borough partitioning only in M2), one row per zone and month with at least one trip: `PULocationID, source_year, source_month, month_index, pickup_borough, trip_count, avg_fare, stddev_fare, avg_distance, stddev_distance, volume_rank, zone_trips_3m, borough_trips_3m, trip_share_3m, baseline_mean_trips, baseline_stddev_trips, is_volume_anomaly`. The run then prints per borough the trips, rows, flagged rows (`anomalies`) and rows without a baseline (`no_baseline`), with the total on the last row (`pickup_borough` = null).
+
+### O1: fare anomaly detection
+
+Starts from M1's cleaned trips. Each trip gets `fare_per_km`, its bucket's trip count, mean and σ, and a flag; then the borough join and one `groupBy` turn the flags into weekday vs weekend rates.
+
+- **D15: fare per km** = `fare_amount / (1.609344 × trip_distance)`, because `trip_distance` is in miles. It's a built-in expression, not a UDF. M1 keeps only positive fares and distances, so there's no division by zero (an error under ANSI mode).
+- **D16: the bucket is `(PULocationID, hour_of_day)`**, the pickup hour in NYC wall-clock time (D3), pooled over every month of the run: with `--years 2025`, one bucket per zone and hour for the whole year (at most 263 × 24 = 6,312).
+- **D17: mean and sample σ** (`stddev_samp`, as D10) of `fare_per_km` over the whole bucket, the trip itself included: a window with `partitionBy(PULocationID, hour_of_day)` and no `orderBy`. A trip is flagged when `fare_per_km > mean + 3σ`: one-sided (only expensive trips, as the spec says "exceeds") and strict.
+- **D18: no σ, no flag.** A bucket with one trip has σ = null, so `is_fare_anomaly` is null. That trip counts in `trips` but not in `flagged_trips`. A bucket where all trips are equal (σ = 0) flags nothing. **Samuelson's inequality:** with the sample σ, no trip can be more than (n − 1)/√n σ from its bucket's mean. That's 2.85 for n = 10 and 3.02 for n = 11, so **a bucket of 10 trips or fewer can never flag a trip**, however extreme its fare. On 2025 that's 418 of 6,102 buckets but only 1,788 trips, and none of them is flagged (LOG → Observations → O1).
+- **D19: weekend** = a pickup on Saturday or Sunday (`dayofweek` ∈ {1, 7}) in NYC wall-clock time, midnight to midnight. A Friday 23:50 → Saturday 00:20 trip is a weekday trip. Day and hour come from M2's `withTripTimes()`. `hour()` and `dayofweek()` don't apply the session time zone to `TIMESTAMP_NTZ` (D7), and O1 uses no other time function.
+- **D20: the rate table** has one row per `(day_type, payment_type, pickup_borough)` with at least one trip: `trips`, `flagged_trips` and `anomaly_rate = flagged_trips / trips`. The borough comes from the same plain join as M2 (`withPickupBorough`), after the flags. `payment_type` is the TLC code: 0 flex fare, 1 credit card, 2 cash, 3 no charge, 4 dispute, 5 unknown, 6 voided trip. A null code is its own row, so Σ `trips` equals M1's `kept_trips`.
+- **D21: only the rate table is written.** Neither the 43 M flagged trips nor the per-bucket statistics: the latter would need a second action on the same uncached input (another scan and window shuffle), or the groupBy rewrite kept for the optimisation loop.
+- **What the flag catches** (2025): 0.40 % of trips, against 0.135 % for a normal distribution and Cantelli's 10 % cap for any distribution. `fare_per_km` is heavy-tailed (p99.9 = 1,823 $/km, from near-zero distances), so a bucket's σ is typically 9 × its mean and **94.5 % of the flags are trips under 0.1 mile**. Read a flag as "implausibly short recorded distance for the fare", not as an overcharge. The spec's mean + 3σ is kept as written.
+- **D22: the baseline is the plain window.** No `broadcast()`, `cache()` or repartitioning. Computing the bucket statistics with a `groupBy` and broadcasting them back would avoid shuffling every trip, but it's an optimisation, so it waits for a profiled run (LOG → L10, L11).
+
+Output: `<output>/o1/` (Parquet, not partitioned, under 100 rows): `day_type, payment_type, pickup_borough, trips, flagged_trips, anomaly_rate`. The run then prints the whole table, and the trips, flagged trips and rate per day type, with the total on the last row (`day_type` = null).
 
 ### O3: demand forecasting features
 

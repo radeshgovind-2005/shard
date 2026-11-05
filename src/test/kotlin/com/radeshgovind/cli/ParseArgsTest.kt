@@ -34,6 +34,12 @@ class ParseArgsTest {
     }
 
     @Test
+    fun `reads the optional operation O1`() {
+        assertEquals(setOf(Operation.O1), parsed("--ops", "o1").operations)
+        assertEquals(setOf(Operation.M1, Operation.O1), parsed("--ops", "m1,O1").operations)
+    }
+
+    @Test
     fun `reads the optional operation O3`() {
         assertEquals(setOf(Operation.M1, Operation.O3), parsed("--ops", "m1,o3").operations)
     }
