@@ -1,0 +1,38 @@
+# bucket-diagnostics.sql in the Docker master: spark-sql --master local[4] --driver-memory 2g --hivevar files="/data/trips/yellow_tripdata_2025-*.parquet" -S -f /tmp/o1-diag.sql
+# (2026-11-05). Blocks, tab-separated, no headers, in query order:
+#   1. trips, flagged, flagged_pct, buckets
+#   2. bucket_size band, buckets, trips, flagged
+#   3. 15 largest buckets: PULocationID, hour_of_day, n, pct_of_trips, mean_fare_per_km, stddev_fare_per_km, flagged
+#   4. distance band (miles), trips, flagged, flagged_pct
+#   5. fare_per_km [p50, p99, p99.9], max fare_per_km, median bucket coefficient of variation (σ / mean)
+#   6. rows per shuffle partition of hashpartitioning(PULocationID, hour_of_day, 200), before AQE: partitions, min, median, max, max/median
+spark.sql.session.timeZone	UTC
+43599832	172907	0.3966	6102
+a n=1	89	89	0
+b 2-10	329	1699	0
+c 11-100	829	41006	860
+d 101-1k	2544	1009306	10520
+e 1k-10k	1430	4422104	25407
+f >10k	881	38125628	136120
+161	18	169582	0.389	17.413	149.359	1233
+161	17	165700	0.38	17.772	179.147	1081
+237	15	154444	0.354	7.263	47.093	181
+237	14	153569	0.352	7.195	48.803	135
+237	17	149626	0.343	14.773	130.416	918
+237	18	148495	0.341	15.145	131.004	995
+161	19	148268	0.34	14.258	122.545	927
+161	20	146617	0.336	6.649	69.261	119
+237	16	145071	0.333	12.759	119.113	653
+236	15	143611	0.329	7.389	60.856	129
+161	16	143330	0.329	15.332	142.339	768
+161	21	141163	0.324	6.505	58.704	130
+132	16	137298	0.315	21.444	245.2	989
+237	13	136862	0.314	7.519	62.322	80
+237	12	133068	0.305	7.493	53.29	113
+a <0.1	287120	163448	56.9267
+b 0.1-0.5	1556750	6558	0.4213
+c 0.5-1	7306743	1787	0.0245
+d 1-5	26389779	1075	0.0041
+e >=5	8059440	39	5.0E-4
+[4.493531785671116,24.026352766510247,1822.6888305628463]	335296.60221804655	9.050081110006245
+200	15827	209798	648593	3.09
