@@ -96,7 +96,7 @@ shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <lis
 | `--runs-dir` | no | `experiments/runs` | where run folders go (`/runs` in Docker). Only with `--run-id`. |
 | `--git-sha` | no | none | the commit that ran, recorded in `run.json`: pass `$(git rev-parse --short HEAD)`. Only with `--run-id`. |
 
-Exit codes: `0` success, `2` bad arguments, missing input files or a reused run id (checked before Spark starts), `1` a failure while Spark runs.
+Exit codes: `0` success, `2` bad arguments, missing input files or a reused run id (checked before Spark starts), `1` a failure while Spark runs. The input check covers every requested month's trip file and, when M2 or M3 is requested, `taxi_zone_lookup.csv`.
 
 ### Profiling
 

@@ -34,9 +34,9 @@ Current state: **M2 done (Phase 1c), profiler built (Phase 2, roadmap 01 Part B)
 Data flow, in call order (all under `src/main/kotlin/com/radeshgovind/`):
 
 ```
-Main.kt  parseArgs ─► findTripFiles ─► [--run-id: prepareRunDir] ─► createSparkSession(eventLogDir).use { runPipeline(...) }
-            │              │                    │
-            └─ Invalid ────┴─ Missing ──────────┴─ run dir exists ─► stderr + exit 2 (before Spark starts)
+Main.kt  parseArgs ─► findTripFiles ─► missingZonesFile ─► [--run-id: prepareRunDir] ─► createSparkSession(eventLogDir).use { runPipeline(...) }
+            │              │                  │                    │
+            └─ Invalid ────┴─ Missing ────────┴─ Missing ──────────┴─ run dir exists ─► stderr + exit 2 (before Spark starts)
 
 runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
               loadTrips(files, fraction) ─► enforceSchema ─┬─► profile("m1") { cleaningStats ─► <output>/m1/ }                     (M1)
@@ -52,6 +52,7 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
   - `LoadTrips.kt`: reads those files, adds `source_year`/`source_month` from each file's name (`_metadata.file_path`, right on the scan), then samples with a fixed seed (42) when `--fraction` < 1
   - `EnforceSchema.kt`: `enforceSchema()` selects and casts the 13 columns of `ENFORCED_SCHEMA` once (timestamps stay `TIMESTAMP_NTZ`) and drops everything else
   - `TripColumns.kt`: trip column names as constants
+  - `ZonesFile.kt`: the zone lookup's path, and `missingZonesFile()`, checked before Spark starts when a requested operation has `readsZones` (M2, M3)
   - `LoadZones.kt` and `ZoneColumns.kt`: the zone table, read with an explicit schema
 - `clean/` (M1):
   - `InvalidTrip.kt`: an enum of the five criteria, each a never-null `condition()` plus its stat column name. The same list drives the filter and the stats.
@@ -91,7 +92,7 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
 
 - `make check` = lint + build + test. CI and the `pre-push` hook run the same thing.
 - `SparkSessionTest` runs a local Spark job with a shuffle. It guards the build setup (Spark on the classpath, Java 21, module flags).
-- `cli/ParseArgsTest`, `cli/MonthRangeTest` and `ingest/TripFilesTest` cover argument parsing and file resolution without Spark, so they run in milliseconds.
+- `cli/ParseArgsTest`, `cli/MonthRangeTest`, `ingest/TripFilesTest` and `ingest/ZonesFileTest` cover argument parsing and file resolution without Spark, so they run in milliseconds.
 - `ingest/EnforceSchemaTest`, `clean/CleaningTest` and `demand/TemporalDemandTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row. The demand fixture has six trips across two boroughs with hand-checked counts and means, plus two time-zone tests: a trip in Lisbon's DST overlap hour pins D7, and an Asia/Tokyo session shows that `hour`/`dayofweek` ignore the session zone.
 - `profiling/SparkProfilerTest` covers roadmap 01 B6: a shuffle job (≥ 2 stages, shuffle R/W > 0), a job without a shuffle (`collect()`; `count()` has an `Exchange SinglePartition`), two blocks keeping their own stages, and the files written (parsed back with Jackson).
 - Inside an extension on `Dataset<Row>`, a bare `col(...)` resolves to the receiver's member `Dataset.col`, not `functions.col`. Build columns in top-level helpers instead.

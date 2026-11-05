@@ -84,7 +84,7 @@ The lab environment is [`../../../labs/compar-spark-docker/docker-spark-env/`](.
   - map `4040-4050` on the master, for the application UI while a job runs
   - (optional) enable event logs and the history server, so DAG screenshots stay available after a run
   - drop the Jupyter service; you don't need it
-- [ ] Smoke submit once the pipeline exists. *(The cluster itself is verified: SparkPi ran on both workers and they can read `/data/trips`.)*
+- [x] Smoke submit once the pipeline exists. *(The cluster itself is verified: SparkPi ran on both workers and they can read `/data/trips`. The pipeline ran on Docker for `--years 2025-01` with M1 and M2, and the results match local: see `experiments/LOG.md` → Observations.)*
   ```bash
   docker compose -f docker/docker-compose.yml up -d --scale spark-worker=2
   ```
