@@ -17,6 +17,41 @@ Run-id format: `<env>-<yyyymmdd>-<nn>` (e.g. `local-20261105-01`). Raw dumps in 
 
 | run-id | git sha | env | scale | variable under test | wall-clock (s) | shuffle R / W | #tasks | spill (disk) | GC % | notes |
 |---|---|---|---|---|---|---|---|---|---|---|
+| local-20261105-01 | ff4adff | local `local[*]` | 2025, all ops | baseline (defaults) | 49.54 | 689.9 / 656.9 MiB | 146 | 456.4 MiB | 3.9 | **warm-up, discarded**. m1 8.84 · m2 5.57 · m3 10.31 · o1 14.33 · o3 10.49 |
+| local-20261105-02 | ff4adff | local `local[*]` | 2025, all ops | baseline (defaults) | 39.72 | 689.9 / 656.9 MiB | 146 | 456.4 MiB | 3.5 | m1 6.98 · m2 4.69 · m3 8.19 · o1 12.09 · o3 7.77 |
+| local-20261105-03 | ff4adff | local `local[*]` | 2025, all ops | baseline (defaults) | 40.61 | 689.9 / 656.9 MiB | 146 | 456.4 MiB | 3.5 | m1 6.88 · m2 4.98 · m3 8.05 · o1 11.98 · o3 8.72 |
+| local-20261105-04 | ff4adff | local `local[*]` | 2025, all ops | baseline (defaults) | 43.17 | 689.9 / 656.9 MiB | 146 | 456.4 MiB | 3.4 | m1 6.94 · m2 5.30 · m3 9.59 · o1 11.85 · o3 9.49 |
+| local-20261105-05 | ff4adff | local `local[*]` | 2025, all ops | baseline (defaults) | 43.65 | 689.9 / 656.9 MiB | 146 | 456.4 MiB | 3.5 | m1 7.89 · m2 4.99 · m3 8.81 · o1 12.16 · o3 9.80. Added because per-op spread > 10 % after 02–04. A short event-log parse (Python, 1 core, a few s) may have overlapped this run |
+| local-20261105-06 | ff4adff | local `local[*]` | 2025, all ops | baseline (defaults) | 41.77 | 689.9 / 656.9 MiB | 146 | 456.4 MiB | 3.4 | m1 7.26 · m2 4.69 · m3 8.51 · o1 11.79 · o3 9.52 |
+| local-20261105-07 | ff4adff | local `local[*]` | 2025, all ops | baseline (defaults) | 39.70 | 689.9 / 656.9 MiB | 146 | 456.4 MiB | 4.3 | m1 6.93 · m2 4.80 · m3 8.43 · o1 11.69 · o3 7.85 |
+| docker-20261105-01 | ff4adff | Docker, 2 workers × 2 cores | 2025, all ops | baseline (defaults) | 57.65 | 683.3 / 650.0 MiB | 96 | 431.9 MiB | 5.3 | **warm-up, discarded**. m1 10.79 · m2 7.62 · m3 12.75 · o1 15.71 · o3 10.78 |
+| docker-20261105-02 | ff4adff | Docker, 2 workers × 2 cores | 2025, all ops | baseline (defaults) | 58.28 | 683.3 / 650.0 MiB | 96 | 431.7 MiB | 5.0 | m1 9.84 · m2 7.06 · m3 12.02 · o1 15.57 · o3 13.79 |
+| docker-20261105-03 | ff4adff | Docker, 2 workers × 2 cores | 2025, all ops | baseline (defaults) | 58.23 | 683.3 / 650.0 MiB | 96 | 431.8 MiB | 4.9 | m1 9.63 · m2 7.37 · m3 12.17 · o1 15.90 · o3 13.16 |
+| docker-20261105-04 | ff4adff | Docker, 2 workers × 2 cores | 2025, all ops | baseline (defaults) | 59.96 | 683.3 / 650.0 MiB | 96 | 431.8 MiB | 5.0 | m1 10.09 · m2 7.36 · m3 12.23 · o1 16.18 · o3 14.10 |
+
+**How to read the columns.** Wall-clock is the sum of the five profiled blocks (`wall_time_s` in `run.json`), each of which is one operation's write. It excludes Spark startup and the unprofiled read-backs; the whole `make run` took 47–52 s locally and the `spark-submit` 66–69 s on Docker. Shuffle, tasks, spill and GC % (`jvm_gc_time` / `executor_run_time`) are summed over the five blocks. Every run used `--input data|/data --output output|/output --years 2025 --run-id <id> --git-sha ff4adff` (plus `--runs-dir /runs` on Docker), with no `spark.*` setting changed (`spark_conf` in `run.json` holds only Spark's own entries and the event-log pair). Docker ran on a fresh `down`/`up --scale spark-worker=2` with a rebuilt jar (`make jar`, 2026-11-05 21:17). Docker was stopped during the local runs, and everything ran under `caffeinate -i`. Every run's printed tables match the verified results (M1 kept 43,599,832; M2 991 rows; M3 3,083 rows with 1,166 flagged; O1 172,907 flags; O3 2,303,880 rows, Σ 43,599,803).
+
+### Baseline, 2025, default configuration
+
+Derived tables and their commands: [`observations/baseline-20261105/`](observations/baseline-20261105/README.md).
+
+| | local (n = 6: 02–07) | Docker, 2 workers (n = 3: 02–04) |
+|---|---|---|
+| **wall-clock, median [min–max]** | **41.19 s [39.70–43.65]**, spread 9.6 % | **58.28 s [58.23–59.96]**, spread 3.0 % |
+| m1 | 6.96 [6.88–7.89] (16.9 %) | 9.84 [9.63–10.09] (16.9 %) |
+| m2 | 4.89 [4.69–5.30] (11.9 %) | 7.36 [7.06–7.37] (12.6 %) |
+| m3 | 8.47 [8.05–9.59] (20.6 %) | 12.17 [12.02–12.23] (20.9 %) |
+| o1 | 11.91 [11.69–12.16] (28.9 %) | 15.90 [15.57–16.18] (27.3 %) |
+| o3 | 9.11 [7.77–9.80] (22.1 %) | 13.79 [13.16–14.10] (23.7 %) |
+| shuffle read / write | 689.9 / 656.9 MiB (O1 498.8 / 498.8, O3 189.4 / 156.5) | 683.3 / 650.0 MiB |
+| tasks (stages) | 146 (24) on 10 cores | 96 (24) on 4 cores |
+| disk spill | 456.4 MiB, all in O1's window stage | 431.7–431.8 MiB, same stage |
+| GC % / CPU ÷ run time | 3.4–4.3 % / 0.69–0.74 | 4.9–5.0 % / 0.90 |
+| max task skew (max / median) | 1.37 (O3) | 1.63 (O3) |
+
+- **Spread.** The totals are inside 10 % in both environments. Locally, single operations still spread by 12–22 % (M2, M3, O3; O3 alternates between about 7.8 s and 9.5 s) even at n = 6, so a local OPT on one operation needs an effect clearly above about 20 %, or more runs. Docker is much steadier: ≤ 6.8 % per operation. Prefer Docker for before/after comparisons of single operations.
+- **The warm-ups.** local-01 was 20 % slower than the median (probably a cold OS file cache after the Docker runs of the day), and docker-01's O3 was faster than every measured run (10.78 s against 13.16–14.10). Both were discarded as the protocol says. docker-01's O3 wasn't investigated.
+- **Docker is 1.41× slower than local** with 4 cores against 10. Scaling is for `scalability-analyst`; it isn't interpreted here.
 
 ## Observations (not measured)
 
@@ -303,6 +338,112 @@ The criteria overlap (D5): in January they sum to 291,491, against 271,401 remov
 ## Hypotheses
 
 Written by `spark-profiler`. Each needs evidence: metric + run-id.
+
+### Baseline diagnosis (2026-11-05; runs local-20261105-02…07, docker-20261105-02…04; sha ff4adff; 2025, defaults)
+
+Process: `spark-profiler`'s, applied by hand (Claude). The inputs are `stages.json` and the final plans (`plans/<op>.txt`, all `isFinalPlan=true`), plus the event logs for what `stages.json` doesn't hold: task timelines, records read and the scan's SQL metrics. The derived tables are in [`observations/baseline-20261105/`](observations/baseline-20261105/README.md). Shares are of the median total wall-clock: **41.19 s local, 58.28 s Docker**.
+
+**Where the time goes** (median stage durations; `attribution.txt`, `bounds` in the README's scripts):
+
+| | local s | % | Docker s | % |
+|---|---|---|---|---|
+| **5 trip-scan stages** (scan + clean + each op's first step), one per operation | 25.25 | **61.3** | 36.98 | **63.5** |
+| … of which M3's (partial aggregate with 2 × `stddev_samp`) | 7.47 | 18.1 | 10.66 | 18.3 |
+| … of which M1's (9 conditional counts) | 5.49 | 13.3 | 8.46 | 14.5 |
+| … M2 / O1 / O3 | 4.19 / 4.10 / 4.00 | 10.2 / 10.0 / 9.7 | 6.39 / 6.46 / 5.01 | 11.0 / 11.1 / 8.6 |
+| **O1 window stage** (sort + window + join + partial agg, spilling) | 7.36 | **17.9** | 9.05 | **15.5** |
+| **O3 after its scan** (2 zero-fill SMJs, window, self-join SMJ, write) | 5.05 | 12.3 | 8.71 | 14.9 |
+| everything else (1-task final aggregates, M3's 5 window stages, broadcasts, gaps between jobs) | ≈ 3.5 | ≈ 8.5 | ≈ 3.6 | ≈ 6 |
+
+**Checks the task asked for:**
+- **Recomputation: confirmed, and the biggest item.** Every operation reads all 12 files again: the scan's SQL metric `size of files read` is **829,973,299 B in each of the 5 jobs** (plus 12,331 B of zone CSV where it's joined), and each scan stage reads **48,722,602 records** (event log, local-02 and docker-02). Nothing is cached; no `InMemoryTableScan` appears in any plan. The profiler's own `input_bytes` (0.1–0.2 MiB per op) is wrong for Parquet; see the methodology note below.
+- **Task count against cores.** Local: every scan stage has **12 tasks for 10 cores** (one per file, each smaller than the 83 MB split size = 830 MB / 10 cores). Docker: **10 tasks for 4 cores**, because the 128 MB split size packs the 12 files into 8 single-file tasks and 2 two-file tasks (7.47 M and 7.05 M records). Every shuffle downstream is coalesced by AQE, to 1 task for the tiny ones (M1, M2, M3: 200 → 1) and 9–11 for O1/O3. 146 tasks per run locally, 96 on Docker.
+- **Spill: only O1's window stage.** 456.4 MiB to disk locally (10 of 11 tasks, ≈ 47 MB each), 431.7 MiB on Docker (8 of 9 tasks, ≈ 57–61 MB each). No other stage spills.
+- **GC: not a bottleneck.** 3.4–4.3 % of executor run time locally, 4.9–5.0 % on Docker. The worst single stage is 7.7 % (Docker's M1 scan), under the 10 % threshold.
+- **CPU ÷ run time:** 0.69–0.74 locally, 0.90 on Docker. The work is CPU-bound, not I/O-bound. Inside the scan stages, the Parquet reader's `scan time` is only 2.3–4.7 s of 20–56 s of task time per stage. The rest is the fused filter / casts / projections / partial aggregates (`accums` in `eventlog-*.txt`).
+- **O1 window.** `Exchange hashpartitioning(PULocationID, hour_of_day, 200)` writes and reads **498.8 MiB** in both environments; AQE coalesces it to 11 tasks locally and 9 on Docker. **No skew:** max/median task = 1.03 locally (10 tasks of 4.05–4.37 M rows plus one of 1.74 M) and 1.56 on Docker. There, records are even (5.14–5.28 M rows, plus one of 2.46 M); the 1.56 comes from the first wave of tasks running slower (4.5–5.0 s) than the second (3.0–3.2 s), not from data.
+- **O3 self-join.** The chosen join is **`SortMergeJoin LeftOuter`** on (`PULocationID`, `hour_index`) in both environments (final plans). Its sides are the current side, re-shuffled after the window (**64.2 MiB** written locally, 62.3 MiB on Docker), and the lag side, the shifted grid (**24.5 MiB**, 22.4 MiB). The self-join stage reads 88.7 / 84.7 MiB. **`ReusedExchange` appears twice**, for the trip aggregate's and the grid's exchanges, so the trip scan runs once for O3. But the zero-fill SortMergeJoin above them runs **twice**, once per self-join side: two stages each read 32.9 MiB / 3,661,330 records locally (33.3 MiB on Docker), concurrently.
+- **Skew anywhere:** the max/median task ratio is ≤ 1.37 locally and ≤ 1.63 on Docker, never near 10.
+
+**The leads, checked against the measurements:**
+
+| lead | verdict | evidence |
+|---|---|---|
+| L1 file count sets scan parallelism | **confirmed → H3** | local-02 stage 1: 10 tasks end at 3.7–4.6 s, then 2 tasks run alone from 3.7 to 5.4 s; docker-02 stage 1: waves of 4 + 4 + 2, the last 2 (the two-file tasks) running 5.7 → 8.5 s on 2 of 4 cores |
+| L2 200 shuffle partitions for tiny shuffles | **confirmed harmless** | AQE coalesces each to 1 task (M1 stage 3, M2 stage 9, M3 stages 17–35: 0.07–0.45 s each). No hypothesis |
+| L3 repeated criteria in M1 | **not separable** | M1's scan stage is slower than M2's (5.49 vs 4.19 s local), but it also has the `regexp_extract`s and 9 aggregates; folded into H4 |
+| L4 recomputation | **confirmed → H1** | 829,973,299 B and 48,722,602 records read in each of the 5 jobs |
+| L5 borough skew | **settled** | M2 max skew 1.10–1.22; the partial aggregate absorbs it |
+| L6 write layout | no issue | M2 writes 6 files (`number of written files`), in a 0.28–0.41 s stage |
+| L7 `_metadata` built and dropped | **folded into H4** | `file_path` etc. are in every trip `FileScan`; only M1 and M3 compute `regexp_extract` on it |
+| L8 M3 window order costs a shuffle | **confirmed, not worth it** | 5 `Exchange`s in `plans/m3.txt`; M3's 5 post-scan stages take 0.56 s together locally and 1.0 s on Docker, and dropping one saves ≈ 0.1–0.4 s (≤ 0.7 %), inside the noise. Not a hypothesis |
+| L9 scan-stage task skew 10.5 (2025-01) | **not reproduced on 2025** | scan skew 1.04–1.15 locally, ≤ 1.58 on Docker (two-file tasks) |
+| L10 O1 window shuffles and sorts every trip | **confirmed → H2** | 498.8 MiB shuffle, 456.4 MiB spill, 17.9 % / 15.5 % of wall |
+| L11 O1 skew latent, hidden by AQE | **still latent** | skew 1.03 / 1.56 at defaults; measuring it needs `coalescePartitions.enabled=false`, a conf change: leave it for the scalability section |
+| L12 O3 self-join is a SortMergeJoin | **confirmed → H6** | `SortMergeJoin LeftOuter`, sides 64.2 + 24.5 MiB, stage 1.33 s / 2.84 s |
+| L13 O3 zero-fill join runs twice | **confirmed → H5** | two concurrent stages each reading 32.9 MiB / 3,661,330 records |
+| L14 window and self-join want different partitioning | **confirmed, part of H6** | the 64.2 MiB re-shuffle by (`PULocationID`, `hour_index`) after the window by (`PULocationID`, `day_of_week`, `hour_of_day`) |
+| L15 one month isn't representative | **consistent** | on 2025 both grid joins are SortMergeJoins, as predicted; the baseline is 2025 |
+
+**The bounds overlap.** H1, H3 and H4 all act on the same five scan stages (61–64 % of wall), so their upper bounds can't be added. Each one is measured on top of whatever has landed before it.
+
+### H1 [M2, M3, O1, O3] The trip Parquet is scanned and cleaned five times
+- Evidence: `size of files read` = 829,973,299 B and 48,722,602 records in each of the 5 jobs (local-20261105-02, docker-20261105-02, event log). The 5 scan stages take 25.25 s of 41.19 s (61.3 %) locally and 36.98 s of 58.28 s (63.5 %) on Docker (runs 02–07 / 02–04). Plan: a `FileScan parquet` (12 paths) under every operation, with no `InMemoryTableScan`.
+- Hypothesis: nothing is cached, so each operation re-runs the read, `enforceSchema`, the `_metadata` projection and the five-criterion filter on all 48.7 M rows.
+- Candidate remedy: `persist(StorageLevel.MEMORY_AND_DISK)` the cleaned trips once (before M2), and `unpersist` after the last operation. M1 has to read the raw rows, so it keeps its scan, and M2's scan fills the cache.
+- Expected: the scan stages of M3, O1 and O3 read 0 Parquet records (an `InMemoryTableScan` instead), and their duration falls. **Upper bound ≈ 37.8 % local / 38.0 % Docker** (those three scan stages: 15.57 s / 22.13 s). The real gain is lower, because the stages also do each operation's own first step, and the cache read and cache build aren't free.
+- Risk: Docker has 1 GiB executors, so the cache will partly go to disk (check the Storage tab / `memoryBytesSpilled`). Verify results identical (M2's tolerance rule).
+
+### H2 [O1] The bucket window shuffles, sorts and spills every trip
+- Evidence: `Exchange hashpartitioning(PULocationID, hour_of_day, 200)` writes and reads 498.8 MiB. The window stage spills **456.4 MiB to disk locally** (431.7 MiB on Docker) in 10 of 11 tasks (8 of 9 on Docker). It takes **7.36 s = 17.9 %** of wall locally and **9.05 s = 15.5 %** on Docker. Runs local-02…07 / docker-02…04, stage 43; plan: `Sort → Window [avg, stddev_samp … RowFrame unbounded]` over the trip-sized exchange. No skew (max/median 1.03 / 1.56).
+- Hypothesis: the window has no partial aggregation, so all 43.6 M cleaned trips cross the shuffle and are sorted per partition, and the sort buffers spill.
+- Candidate remedy (L10): `groupBy(PULocationID, hour_of_day)` for count / mean / σ (≤ 6,312 rows, with a partial aggregate before a tiny shuffle), then `broadcast()` the bucket statistics back onto the trips.
+- Expected: O1's shuffle write goes from 498.8 MiB to < 1 MiB, its spill from 456 MiB to 0, and the window stage disappears. **Upper bound ≈ 17.9 % local / 15.5 % Docker.**
+- Caveat: the stats side and the trip side each scan the trips unless H1 has landed, and an extra scan costs ≈ 4.1 s / 6.5 s (O1's scan stage). So without H1 the net gain is at most ≈ 8 % local / 4.4 % Docker. **Measure H2 after H1.** Flags and counts must stay exact; mean and σ within the 10⁻¹² relative tolerance.
+
+### H3 [all scans] Idle cores in each scan stage's last wave
+- Evidence:
+  - Local: 12 file-sized tasks on 10 cores. In local-02 stage 1, 10 tasks finish at 3.7–4.6 s, then 2 run alone until 5.4 s.
+  - Docker: 10 tasks on 4 cores (8 single files plus 2 two-file tasks of 7.47 M / 7.05 M records). Waves of 4 + 4 + 2; the last 2 run 5.7 → 8.5 s on 2 of 4 cores (docker-02 stage 1).
+  - Idle-core loss, summed over the 5 scan stages (stage duration − Σ task run time ÷ cores): **5.39 s = 13.1 %** local (runs 02–07, range 5.31–5.76) and **7.40 s = 12.7 %** Docker (02–04).
+  - Each file has 4–5 row groups of ≈ 17.5 MB / 1,048,576 rows, 53 in all (`row-groups.txt`), so smaller splits are possible.
+- Hypothesis: split granularity is a whole file (local) or up to two files (Docker), too coarse for the core count, so the tail of every scan stage runs on a fraction of the cores.
+- Candidate remedy: `spark.sql.files.maxPartitionBytes` ≈ 18 MB, so that each task reads about one row group: ≈ 53 scan tasks, 5.3 per core locally and 13 per core on Docker.
+- Expected: scan-stage task count 12 / 10 → ≈ 53, scan-stage duration → close to Σ task run time ÷ cores, and the idle-core loss → near 0. **Upper bound ≈ 13.1 % local / 12.7 % Docker**, less the per-task overhead of 4–5× more tasks.
+- Note: O1's window stage shows the same last-wave tail (local 11 tasks on 10 cores, Docker 9 on 4, ≈ 1 s each), but that's AQE's coalescing target, a different knob: not part of this hypothesis.
+
+### H4 [M1, M3] The per-row `regexp_extract` on `_metadata.file_path` (needs a diagnostic first)
+- Evidence: the same scan of the same input costs more in the two operations that compute `source_year`/`source_month`:
+  - M1: 5.49 s local / 8.46 s Docker; M3: 7.47 s / 10.66 s.
+  - Against M2: 4.19 s / 6.39 s; O1: 4.10 / 6.46; O3: 4.00 / 5.01.
+  - Only `plans/m1.txt` and `plans/m3.txt` contain `regexp_extract` (2 per row, on a per-row path string).
+  - The excess over M2 is 4.58 s local (11.1 %) and 6.34 s Docker (10.9 %).
+- **Confounded:** M1 also has 9 conditional counts (L3), and M3 has 2 × `stddev_samp` + 2 × `avg`. Nothing measured so far separates the regex from the aggregates.
+- Hypothesis: two regex evaluations per row on a 100-character path, for 48.7 M rows per scan.
+- Candidate remedy: derive year and month once per file instead of once per row (e.g., `substring` on `_metadata.file_name` at fixed offsets, or one read per file with `lit()` values), keeping D4's semantics.
+- Before the OPT, `spark-optimizer` should measure the regex alone (the same scan with and without the two columns) to see whether H4 holds.
+- Expected: M1 and M3 scan stages move towards M2's. **Upper bound ≈ 11 %** in both environments, and likely much less once the aggregate cost is separated.
+
+### H5 [O3] The zero-fill SortMergeJoin is computed twice
+- Evidence: both self-join sides reuse the trip-aggregate and grid exchanges (`ReusedExchange` ×2), but not the joined grid. Two stages each read 32.9 MiB / 3,661,330 records and run the same `SortMergeJoin LeftOuter` (local-02 stages 58, 59; docker-02 the same). The lag-side copy takes **2.13 s = 5.2 %** local and **3.74 s = 6.4 %** Docker (medians). It runs concurrently with the other copy, competing for the same cores.
+- Hypothesis: `hourly` (the zero-filled grid) has two consumers, and Spark recomputes it per consumer.
+- Candidate remedy: `persist` the zero-filled `hourly` grid (2.3 M rows × 3 columns), so that both self-join sides read it, then `unpersist`. The self-join itself stays, as the spec requires.
+- Expected: one zero-fill stage instead of two, and O3's post-scan time (5.05 s / 8.71 s) falls by up to the second copy. **Upper bound ≈ 5.2 % local / 6.4 % Docker.** On 4 cores the copies compete harder, so expect more of the bound on Docker.
+
+### H6 [O3] The 4-week-lag self-join is a SortMergeJoin with an extra re-shuffle
+- Evidence: `SortMergeJoin LeftOuter` on (`PULocationID`, `hour_index`) in both final plans. The current side is re-shuffled after the window (64.2 MiB local / 62.3 MiB Docker, L14), the lag side is 24.5 / 22.4 MiB, and the join stage reads 88.7 / 84.7 MiB. That stage takes **1.33 s = 3.2 %** local and **2.84 s = 4.9 %** Docker (medians).
+- Hypothesis: Catalyst estimates the lag side at 122 MB (O3 observation), over the 10 MB broadcast threshold, so it shuffles and sorts both sides, although the real lag side is 2.3 M rows × 3 columns.
+- Candidate remedy: `broadcast()` hint on the lag side. That keeps the self-join (spec), removes its sort-merge and the current side's re-shuffle, and leaves the join in the window's stage.
+- Expected: O3 loses one exchange (64.2 MiB) and the join stage, with `BroadcastHashJoin LeftOuter BuildRight` in the plan. **Upper bound ≈ 3.2 % local / 4.9 % Docker.**
+- Risk: the hashed relation of 2.3 M rows has to fit in the 1 GiB Docker driver and executors; check the broadcast size and GC.
+
+**Order for the loop:** H1 → H2 (after H1, see its caveat) → H3 → H5 → H6. H4 needs its diagnostic first. Measure each against the baseline above, or against the previous kept OPT, with the Part C protocol. Use Docker for single-operation effects under about 20 %, because local per-operation spread reaches 22 %.
+
+### Methodology notes from the baseline
+- **The profiler's `input_bytes` is wrong for Parquet scans.** Each scan task reports `Bytes Read` ≈ 11 KB (e.g., 11,224 B for a 3,574,091-record task, local-02 stage 1), while `Records Read` is right. The bytes really read are in the scan's SQL metric `size of files read` (event log), 829,973,299 B per job. Use records read or that SQL metric, never `input_bytes`, in the report. This confirms the M3 observation's "metric to check". Fixing the profiler is a separate change.
+- **Stage durations overlap.** Stages run concurrently (O3's scan with the grid generation, and its two zero-fill stages together), so the per-stage durations in `stages.json` add up to more than the wall-clock (42.1 s vs 39.7 s, local-02). Shares above use the critical path or the operation's wall-clock, not a sum of stages.
+- **Locally, the first wave of a stage is slower than later waves** (local-02 stage 1: 3.7–4.5 s for 10 concurrent tasks, 1.6–1.8 s for the 2 that ran alone). That's contention between 10 concurrent tasks (memory bandwidth, and probably the M5's mix of performance and efficiency cores; not verified). It inflates local skew ratios slightly and is one reason local runs vary more than Docker.
+- **Stage ids aren't stable on Docker for O3** (window stage 61 or 63, join stage 67 or 69). Compare stages by role, not by id.
 
 <!--
 ### H1 [op] <bottleneck>

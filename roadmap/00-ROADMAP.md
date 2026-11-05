@@ -27,14 +27,17 @@ Each optimisation needs evidence of a bottleneck before you change anything (a s
 | Build (Gradle, Spark 4.2.1, Kotlin, JDK 21, fat jar) | ✅ done: [`build.gradle.kts`](../build.gradle.kts), [`gradle.properties`](../gradle.properties) |
 | Repo tooling (Makefile, hooks, commitlint, CI) | ✅ done: [`Makefile`](../Makefile), [`AGENTS.md`](../AGENTS.md) |
 | Dataset | ✅ done: all of 2025 in `data/` (12 files, 791.5 MiB) |
-| Experiment log structure | ✅ done, but empty: [`experiments/LOG.md`](../experiments/LOG.md) |
 | Perf-loop agents and Git slash commands | ✅ done: `.claude/agents/`, `.claude/commands/` |
-| Report template | ✅ there, nothing written yet |
-| **Pipeline code** | 🟡 skeleton (1a), M1 (1b), M2 (1c) and M3 (1d) done; O1–O4 next: [`src/main/kotlin/com/radeshgovind/`](../src/main/kotlin/com/radeshgovind/) |
-| **Profiler** | ❌ the Lab 3 one is Python. Needs a Kotlin port (Phase 2) |
-| Docker Spark in this repo | ✅ done: [`docker/docker-compose.yml`](../docker/docker-compose.yml), Spark 4.2.1 / Java 21, SparkPi ran on 2 workers |
-| DI cluster | ❓ no information anywhere in the course material |
-| Choice of O1–O4 | ⏸ deliberately deferred until M1–M3 run |
+| **Pipeline code** | ✅ done: skeleton, M1 (#6), M2 (#7), M3 (#10), O1 (#11), O3 (#12), each verified for correctness: [`src/main/kotlin/com/radeshgovind/`](../src/main/kotlin/com/radeshgovind/) |
+| Choice of O1–O4 | ✅ **O1** (window shuffle and skew) + **O3** (self-join), chosen 2026-11-05 |
+| **Profiler** | ✅ done: Kotlin `SparkListener` port (#9), `--run-id` writes `experiments/runs/<run-id>/` (README → Profiling) |
+| Docker Spark in this repo | ✅ done: [`docker/docker-compose.yml`](../docker/docker-compose.yml), Spark 4.2.1 / Java 21, 2 workers × 2 cores / 1 GiB executors |
+| **Baseline (Phase 2/3)** | ✅ done 2026-11-05 on `ff4adff`, 2025, defaults. Local: **41.19 s [39.70–43.65]** (n = 6). Docker, 2 workers: **58.28 s [58.23–59.96]** (n = 3). In [`experiments/LOG.md`](../experiments/LOG.md) → Runs |
+| **Hypotheses** | ✅ H1–H6 ranked by share of wall-clock: H1 recomputation (≤ 38 %), H2 O1 window shuffle/spill (≤ 18 %), H3 scan task granularity (≤ 13 %), H4 per-row regex (≤ 11 %, needs a diagnostic), H5 O3 zero-fill computed twice (≤ 6 %), H6 O3 self-join SMJ (≤ 5 %). In LOG → Hypotheses |
+| **Optimisations (Phase 4)** | ⏭ next: one hypothesis at a time through `spark-optimizer` + `benchmark-runner`, H1 first |
+| Scalability (Phase 5) | ⏸ after the OPTs; L11 (latent O1 skew) is a lead for it |
+| DI cluster | ❓ still no details ([`docs/lab-inputs.md`](../docs/lab-inputs.md)); Docker covers the mandatory cluster results |
+| Report | ⏸ template only, nothing written yet: [`docs/report/template.tex`](../docs/report/template.tex) |
 
 ## 3. Key concepts
 
