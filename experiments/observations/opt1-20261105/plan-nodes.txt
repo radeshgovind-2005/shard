@@ -1,0 +1,16 @@
+# per final plan (between '== Final Plan ==' and '== Initial Plan =='), from plans/<side>/<op>.txt; command:
+#   awk '/== Final Plan ==/{f=1} /== Initial Plan ==/{f=0} f' <plan> | grep -c '<node>'
+# FileScan parquet under InMemoryRelation is the cached plan printed as an inner child, not a scan that runs.
+side                               op       FileScan IMTableScan IMRelation TblCacheQS Exch(hash)     Reused        SMJ        BHJ
+off-local-20261105-81              m2              1          0          0          0          1          0          0          1
+off-local-20261105-81              m3              1          0          0          0          5          0          0          1
+off-local-20261105-81              o1              1          0          0          0          2          0          0          1
+off-local-20261105-81              o3              1          0          0          0          2          2          0          4
+on-local-20261105-82               m2              1          1          1          1          1          0          0          1
+on-local-20261105-82               m3              1          1          1          1          5          0          0          1
+on-local-20261105-82               o1              1          1          1          1          2          0          0          1
+on-local-20261105-82               o3              2          2          2          2          7          1          0          4
+
+# initial (pre-AQE) plans, joins only
+off-local-20261105-81 o3 initial: SortMergeJoin=0 BroadcastHashJoin=4 Exchange hashpartitioning=3
+on-local-20261105-82 o3 initial: SortMergeJoin=3 BroadcastHashJoin=1 Exchange hashpartitioning=7

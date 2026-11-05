@@ -1,0 +1,92 @@
+[ {
+  "id" : 24,
+  "name" : "*(1) Project [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, PULocationID#7, DOLocationID#8, cast(passenger_count#3L as int) AS passenger_count#30, cast(RatecodeID#5L as int) AS RatecodeID#31, cast(payment_type#9L as int) AS payment_type#32, trip_distance#4, fare_amount#10, tip_amount#13, total_amount#16, cast(regexp_extract(_metadata#22.file_path, yellow_tripdata_(\\d{4})-(\\d{2})\\.parquet, 1) as int) AS source_year#37, cast(regexp_extract(_metadata#22.file_path, yellow_tripdata_(\\d{4})-(\\d{2})\\.parquet, 2) as int) AS source_month#38]\n+- *(1) Filter (((((NOT coalesce((isnull(fare_amount#10) OR (fare_amount#10 <= 0.0)), false) AND NOT coalesce((isnull(trip_distance#4) OR (trip_distance#4 <= 0.0)), false)) AND NOT coalesce(((cast(passenger_count#3L as int) = 0) OR (cast(passenger_count#3L as int) > 6)), false)) AND NOT coalesce(((isnull(tpep_pickup_datetime#1) OR isnull(tpep_dropoff_datetime#2)) OR (tpep_dropoff_datetime#2 <= tpep_pickup_datetime#1)), false)) AND NOT coalesce((isnull(PULocationID#7) OR ((PU...",
+  "numPartitions" : 12,
+  "numCachedPartitions" : 12,
+  "storageLevel" : "Disk Memory Deserialized 1x Replicated",
+  "memoryUsed" : 1804470904,
+  "diskUsed" : 585345413,
+  "dataDistribution" : [ {
+    "address" : "192.168.0.181:52489",
+    "memoryUsed" : 1804470904,
+    "memoryRemaining" : 1869908188,
+    "diskUsed" : 585345413,
+    "onHeapMemoryUsed" : 1804470904,
+    "offHeapMemoryUsed" : 0,
+    "onHeapMemoryRemaining" : 1869908188,
+    "offHeapMemoryRemaining" : 0
+  } ],
+  "partitions" : [ {
+    "blockName" : "rdd_24_9",
+    "storageLevel" : "Disk Serialized 1x Replicated",
+    "memoryUsed" : 0,
+    "diskUsed" : 173637544,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_8",
+    "storageLevel" : "Disk Serialized 1x Replicated",
+    "memoryUsed" : 0,
+    "diskUsed" : 190472269,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_5",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 196596840,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_4",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 208513792,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_7",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 197268368,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_1",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 212389632,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_3",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 210910992,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_6",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 206934760,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_2",
+    "storageLevel" : "Disk Serialized 1x Replicated",
+    "memoryUsed" : 0,
+    "diskUsed" : 221235600,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_0",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 218953960,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_10",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 178557808,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_24_11",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 174344752,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  } ]
+} ]

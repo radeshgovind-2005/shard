@@ -1,0 +1,49 @@
+# OPT-1 correctness on 2025-01: output/opt1-off/<op> (--skip-opts opt1, run local-20261105-81) vs
+# output/opt1-on/<op> (default = OPT-1 on, run local-20261105-82). Same jar, HEAD 98578d6 + the uncommitted OPT-1 diff.
+#
+# Commands (from the repo root; the Docker master mounts output/ at /output; local[2] inside the master container,
+# so the cluster's workers aren't used; the spark user's HOME is /nonexistent, hence HOME=/tmp):
+#   docker exec -i -e HOME=/tmp shard-spark-master-1 /opt/spark/bin/spark-shell --master 'local[2]' \
+#     --conf spark.ui.enabled=false --driver-java-options -Duser.home=/tmp \
+#     < experiments/observations/opt1-20261105/scripts/compare-opt1.scala | grep -E '^(scala> )?(RESULT|KEYS|DOUBLES)'
+#   (same for scripts/control-opt1.scala | grep CONTROL)
+#
+# Checks per operation (scripts/compare-opt1.scala):
+#   schema_equal        off.schema == on.schema
+#   rows_off / rows_on  count()
+#   exceptAll both ways whole rows, multiset (stricter than except): 0 = identical, bit for bit, doubles included
+#   key_unique          the non-fractional columns (KEYS) identify a row on both sides, so the join below is 1:1
+#   unmatched_keys      null-safe full outer join on KEYS: rows on one side only. Integers, strings, flags, dates exact
+#   beyond_tol          matched rows with a double (DOUBLES) outside |a-b| <= 1e-12 * max(|a|,|b|) (null=null, NaN=NaN)
+#   max_rel_diff        the largest relative difference over all doubles (0.0 = equal)
+
+RESULT m1  schema_equal=true rows_off=1 rows_on=1 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 doubles=0 beyond_tol=0 max_rel_diff=n/a
+KEYS m1: source_year,raw_trips,bad_fare,bad_distance,bad_passenger_count,bad_time_order,bad_zone,removed_trips,kept_trips,null_passenger_count
+DOUBLES m1: 
+RESULT m2  schema_equal=true rows_off=815 rows_on=815 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 doubles=3 beyond_tol=0 max_rel_diff=0.0
+KEYS m2: day_of_week,hour_of_day,trip_count,pickup_borough
+DOUBLES m2: avg_fare,avg_duration_min,avg_distance
+RESULT m3  schema_equal=true rows_off=257 rows_on=257 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 doubles=7 beyond_tol=0 max_rel_diff=0.0
+KEYS m3: PULocationID,source_year,source_month,month_index,pickup_borough,trip_count,volume_rank,zone_trips_3m,borough_trips_3m,is_volume_anomaly
+DOUBLES m3: avg_fare,stddev_fare,avg_distance,stddev_distance,trip_share_3m,baseline_mean_trips,baseline_stddev_trips
+RESULT o1  schema_equal=true rows_off=52 rows_on=52 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 doubles=1 beyond_tol=0 max_rel_diff=0.0
+KEYS o1: day_type,payment_type,pickup_borough,trips,flagged_trips
+DOUBLES o1: anomaly_rate
+RESULT o3  schema_equal=true rows_off=195,672 rows_on=195,672 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 doubles=3 beyond_tol=0 max_rel_diff=0.0
+KEYS o3: PULocationID,service_zone,pickup_date,day_of_week,hour_of_day,trip_count,lag_4w_trip_count,is_demand_spike
+DOUBLES o3: hist_mean_trips,hist_var_trips,demand_index
+
+# Verdict: every output identical, bit for bit (exceptAll empty both ways, max relative difference 0.0), so the
+# 1e-12 tolerance wasn't needed. Row counts: M1 1, M2 815, M3 257, O1 52, O3 195,672.
+#
+# Negative control (scripts/control-opt1.scala): the same checks must fail on a perturbed copy, in memory.
+CONTROL o1 rate x(1+1e-9) on 1 row: exceptAll=1 beyond_tol=1
+CONTROL m3 is_volume_anomaly non-null rows: 0
+CONTROL m3 trip_count+1 for zone 132: exceptAll=1 / 1
+# (is_volume_anomaly is null on every M3 row of a single month, no 3-month history, so the flag can't be perturbed
+#  there; an integer is used instead.)
+#
+# Not a difference in results, but visible on disk: O3's 3 Parquet files total 941,907 B off and 1,765,302 B on
+# (same rows). With OPT-1 the final self-join streams from a hash exchange (AQEShuffleRead local) instead of the
+# window's sorted output, so the row order inside the files changes and compresses worse. M2 (30,415 B), M3 (19,147 B)
+# and O1 (2,908 B) are the same size on both sides.
