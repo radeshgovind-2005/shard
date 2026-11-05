@@ -4,10 +4,12 @@ import com.radeshgovind.anomalies.AnomalyColumns.ANOMALY_RATE
 import com.radeshgovind.anomalies.AnomalyColumns.DAY_TYPE
 import com.radeshgovind.anomalies.AnomalyColumns.FLAGGED_TRIPS
 import com.radeshgovind.anomalies.AnomalyColumns.TRIPS
+import com.radeshgovind.anomalies.BucketStatsPlan
 import com.radeshgovind.anomalies.fareAnomalyRates
 import com.radeshgovind.clean.cleaningStats
 import com.radeshgovind.clean.removeInvalidTrips
 import com.radeshgovind.cli.Operation
+import com.radeshgovind.cli.Optimisation
 import com.radeshgovind.cli.PipelineArgs
 import com.radeshgovind.demand.DemandColumns.PICKUP_BOROUGH
 import com.radeshgovind.demand.DemandColumns.TRIP_COUNT
@@ -57,7 +59,8 @@ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Fo
         writeZoneStatistics(cleaned, spark.loadZones(args.input), args.outputOf(Operation.M3), profiler)
     }
     if (Operation.O1 in args.operations) {
-        writeFareAnomalyRates(cleaned, spark.loadZones(args.input), args.outputOf(Operation.O1), profiler)
+        val plan = bucketStatsPlanFor(args)
+        writeFareAnomalyRates(cleaned, spark.loadZones(args.input), plan, args.outputOf(Operation.O1), profiler)
     }
     if (Operation.O3 in args.operations) {
         val grid = spark.zoneHourGrid(args.months)
@@ -122,10 +125,22 @@ private fun printZoneTotals(spark: SparkSession, out: Path) {
         .show(false)
 }
 
+// OPT-2 (H2): O1's bucket statistics as a groupBy broadcast back onto the trips; --skip-opts opt2 keeps the window.
+private fun bucketStatsPlanFor(args: PipelineArgs): BucketStatsPlan =
+    if (args.isApplied(Optimisation.OPT2)) BucketStatsPlan.BROADCAST_AGGREGATE else BucketStatsPlan.WINDOW
+
 // D21: only the rate table is written (at most 2 day types × 8 payment codes, null included, × 6 boroughs = 96 rows),
 // never the flagged trips. No partitionBy: the table is tiny.
-private fun writeFareAnomalyRates(cleaned: Dataset<Row>, zones: Dataset<Row>, out: Path, profiler: Profiler) {
-    profiler.profile("o1") { cleaned.fareAnomalyRates(zones).write().mode(SaveMode.Overwrite).parquet(out.toString()) }
+private fun writeFareAnomalyRates(
+    cleaned: Dataset<Row>,
+    zones: Dataset<Row>,
+    plan: BucketStatsPlan,
+    out: Path,
+    profiler: Profiler,
+) {
+    profiler.profile("o1") {
+        cleaned.fareAnomalyRates(zones, plan).write().mode(SaveMode.Overwrite).parquet(out.toString())
+    }
     printAnomalyRates(cleaned.sparkSession(), out)
 }
 

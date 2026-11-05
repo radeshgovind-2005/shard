@@ -6,7 +6,9 @@ import java.time.YearMonth
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class ParseArgsTest {
     @Test
@@ -48,12 +50,24 @@ class ParseArgsTest {
     fun `applies every optimisation by default and records none skipped`() {
         val args = parsed()
         assertEquals(emptySet(), args.skippedOptimisations)
+        assertTrue(args.isApplied(Optimisation.OPT2))
         assertEquals("", args.asRecord()["skip_opts"])
     }
 
     @Test
+    fun `reads the optimisations to skip, ignoring case, and records them`() {
+        listOf("opt2", "OPT2", " Opt2 ", "opt2,OPT2").forEach {
+            val args = parsed("--skip-opts", it)
+            assertEquals(setOf(Optimisation.OPT2), args.skippedOptimisations, "for --skip-opts $it")
+            assertFalse(args.isApplied(Optimisation.OPT2), "for --skip-opts $it")
+            assertEquals("opt2", args.asRecord()["skip_opts"], "for --skip-opts $it")
+        }
+    }
+
+    // opt1 was measured and reverted (LOG → OPT-1), so its id is gone.
+    @Test
     fun `rejects unknown optimisation ids and an empty or missing list`() {
-        listOf("opt1", "opt9", "h1", "1", "opt9,,opt9", "opt9,").forEach {
+        listOf("opt1", "opt9", "h1", "2", "opt2,opt1", "opt2,,opt2", "opt2,").forEach {
             assertContains(reasonWithRequired("--skip-opts", it), "--skip-opts", message = "for --skip-opts $it")
         }
         assertContains(reasonWithRequired("--skip-opts", ""), "needs a value")
