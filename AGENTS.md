@@ -29,7 +29,7 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-Current state: **M3 done (Phase 1d), profiler built (Phase 2, roadmap 01 Part B).** Argument parsing, input checks, trip loading, M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`), M2 (temporal demand per borough, day and hour, written to `<output>/m2/`) and M3 (zone-month statistics with rank, rolling share and anomaly windows, written to `<output>/m3/`) run end to end, O1 (fare anomalies per zone-hour bucket, weekday vs weekend rates written to `<output>/o1/`) is built, and `--run-id` profiles each operation's write into `experiments/runs/<run-id>/`. O3 (in progress in parallel) and the profiled baseline (roadmap 01 Part C) are next.
+Current state: **M3 done (Phase 1d), profiler built (Phase 2, roadmap 01 Part B).** Argument parsing, input checks, trip loading, M1 (schema enforcement plus the per-year cleaning stats written to `<output>/m1/`), M2 (temporal demand per borough, day and hour, written to `<output>/m2/`) and M3 (zone-month statistics with rank, rolling share and anomaly windows, written to `<output>/m3/`) run end to end, O1 (fare anomalies per zone-hour bucket, weekday vs weekend rates written to `<output>/o1/`) and O3 (zone-hour demand features with a 4-week-lag self-join, written to `<output>/o3/`) are built, and `--run-id` profiles each operation's write into `experiments/runs/<run-id>/`. The profiled baseline (roadmap 01 Part C) are next.
 
 Data flow, in call order (all under `src/main/kotlin/com/radeshgovind/`):
 
@@ -43,18 +43,18 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
                                                            └─► removeInvalidTrips ─┬─► profile("m2") { temporalDemand(loadZones) ─► <output>/m2/ }  (M2)
                                                                                    ├─► profile("m3") { zoneStatistics(loadZones) ─► <output>/m3/ }   (M3)
                                                                                    ├─► profile("o1") { fareAnomalyRates(loadZones) ─► <output>/o1/ }  (O1)
-                                                                                   └─► [O3]                       (not wired yet)
+                                                                                   └─► profile("o3") { demandForecast(zoneHourGrid(months), loadZones) ─► <output>/o3/ }  (O3)
               profiler.finish()  ─► <runs-dir>/<run-id>/run.json, stages.json, plans/<op>.txt + summary table
 ```
 
 - `Main.kt`: `com.radeshgovind.MainKt`, the application and jar entry point. It owns the exit codes: 0 ok, 2 bad arguments or missing files, 1 a failure inside Spark.
-- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`, `O1`), `ProfilingArgs.kt` (`--run-id`, `--runs-dir`, `--git-sha`; null when profiling is off)
+- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`, `O1`, `O3`), `ProfilingArgs.kt` (`--run-id`, `--runs-dir`, `--git-sha`; null when profiling is off)
 - `ingest/`:
   - `TripFiles.kt`: the exact Parquet path for each month, with no globs, as `Found` or `Missing`
   - `LoadTrips.kt`: reads those files, adds `source_year`/`source_month` from each file's name (`_metadata.file_path`, right on the scan), then samples with a fixed seed (42) when `--fraction` < 1
   - `EnforceSchema.kt`: `enforceSchema()` selects and casts the 13 columns of `ENFORCED_SCHEMA` once (timestamps stay `TIMESTAMP_NTZ`) and drops everything else
   - `TripColumns.kt`: trip column names as constants
-  - `ZonesFile.kt`: the zone lookup's path, and `missingZonesFile()`, checked before Spark starts when a requested operation has `readsZones` (M2, M3, O1)
+  - `ZonesFile.kt`: the zone lookup's path, and `missingZonesFile()`, checked before Spark starts when a requested operation has `readsZones` (M2, M3, O1, O3)
   - `LoadZones.kt` and `ZoneColumns.kt`: the zone table, read with an explicit schema
 - `clean/` (M1):
   - `InvalidTrip.kt`: an enum of the five criteria, each a never-null `condition()` plus its stat column name. The same list drives the filter and the stats.
@@ -79,6 +79,16 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
   - `WithFareAnomalyFlag.kt`: `is_fare_anomaly` = `fare_per_km > mean + 3σ`, null without a σ (D17, D18; Samuelson: n ≤ 10 never flags)
   - `WithDayType.kt`: `weekend` for `dayofweek` ∈ {1, 7}, else `weekday` (D19)
   - `AnomalyColumns.kt`: O1's column names as constants
+- `forecast/` (O3; decisions D23–D30 in README → O3):
+  - `DemandForecast.kt`: `demandForecast(grid, zones)`, the O3 story: zero-filled hourly counts, bucket stats, the 4-week-lag self-join, the demand index, `service_zone`, and a final `select` that fixes the column order
+  - `ZoneHourGrid.kt`: `SparkSession.zoneHourGrid(months, zoneIds = 1..263)`, zones × every hour of the range (`range` × `range`, hour bounds from `LocalDate` on the driver). The grid is a parameter, so its size stays visible in `Pipeline.kt`.
+  - `HourIndex.kt`: `hourIndex(pickup)` = `unix_date(to_date(pickup)) × 24 + hour(pickup)`, zone-free on `TIMESTAMP_NTZ` (D24)
+  - `HourlyTripCounts.kt`: `hourlyTripCounts()` (`groupBy(PULocationID, hour_index)`), and `withHourlyCounts(counts)`: the grid left-joined with them, missing counts → 0 (D25), plus `pickup_date`, `day_of_week` and `hour_of_day` derived from the index
+  - `WithBucketStats.kt`: `avg` and `var_samp` of `trip_count` over the whole (`PULocationID`, `day_of_week`, `hour_of_day`) bucket (D26)
+  - `WithFourWeekLag.kt`: `withFourWeekLag(hourly)`, the spec's self-join: `hourly` shifted by +672 hours and left-joined back on (`PULocationID`, `hour_index`), with no hint (D27)
+  - `WithDemandIndex.kt`: `demand_index` (null when the mean is 0) and `is_demand_spike` (> 2.0, false when the mean is 0) (D28)
+  - `WithServiceZone.kt`: a plain inner join with the zone lookup for `service_zone` (D29)
+  - `ForecastColumns.kt`: O3's column names as constants
 - `profiling/` (roadmap 01 Part B; output layout in README → Profiling):
   - `SparkProfiler.kt`: `Profiler` (`profile(name) { … }`, `finish()`), `NoProfiler` (just runs the block) and `SparkProfiler`. Each block runs under its own `setJobGroup`; the listener bus is drained (`listenerBus().waitUntilEmpty`) before and after it, because listener events are asynchronous. **One action per block.**
   - `MetricsListener.kt`: the `SparkListener`: job → group and stage ids, successful task durations per stage, completed stages
@@ -111,6 +121,7 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
 - `zones/ZoneStatisticsTest` builds 86 trips over 4 zones and 4 months: a zone with 10, 12, 11 trips and then 40 (flagged in April, not in March, null in January and February), a zone with no February (its April rolling share must leave January out), Manhattan ranks 10, 3, 3 → 1, 2, 2, a single-trip zone-month with a null σ, and Σ `trip_count` = input trips.
 - `anomalies/FareAnomaliesTest` builds 22 trips in 3 buckets: an 11-trip bucket with hand-checked mean and σ whose one outlier is flagged (3.015 σ), a 10-trip bucket whose 1,000,000 fare is not (Samuelson: at most 2.846 σ), a single-trip bucket with null σ and flag, the weekend edges (Fri 23:59, Sat 00:00, Sun 23:59, Mon 00:00), the rate table per (day type, payment type, borough) with a null payment type kept, Σ `trips` = input trips and flagged ≤ trips.
 - `ingest/EnforceSchemaTest`, `clean/CleaningTest` and `demand/TemporalDemandTest` run on a local Spark session from `localTestSession()` (`src/test/kotlin/com/radeshgovind/LocalSpark.kt`). The cleaning fixture has one row per failure case, a null-passenger row and an overlap row. The demand fixture has six trips across two boroughs with hand-checked counts and means, plus two time-zone tests: a trip in Lisbon's DST overlap hour pins D7, and an Asia/Tokyo session shows that `hour`/`dayofweek` ignore the session zone.
+- `forecast/DemandForecastTest` runs O3 on a 2-zone January–February grid: rows = zones × hours; 3 trips in 1 of 9 Wednesdays give μ = 1/3 and variance 1 (zero-fill); 2025-02-03's lag is 2025-01-06's count, January 6 has a null lag and an empty lag hour gives 0; a 10-trip Thursday against 1-trip Thursdays has DI 5 (flagged) and the others 0.5; a zero mean gives a null DI and no spike; a 2024 trip is left out; and in a Europe/Lisbon session the hour index and each trip's hour are unchanged on 2025-03-30 and 2025-10-26.
 - `profiling/SparkProfilerTest` covers roadmap 01 B6: a shuffle job (≥ 2 stages, shuffle R/W > 0), a job without a shuffle (`collect()`; `count()` has an `Exchange SinglePartition`), two blocks keeping their own stages, and the files written (parsed back with Jackson).
 - Inside an extension on `Dataset<Row>`, a bare `col(...)` resolves to the receiver's member `Dataset.col`, not `functions.col`. Build columns in top-level helpers instead.
 - Smoke check (verified 2026-11-05): `--years 2025-01` reads 3,475,226 trips both locally and on Docker. `--fraction 0.1` gives 347,645, the same on every run.

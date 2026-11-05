@@ -1,0 +1,22 @@
+# make run ARGS="--input <shard>/data --output <scratchpad>/out-2025 --years 2025 --ops m1,o3 --run-id local-20261105-94 --runs-dir <scratchpad>/runs --git-sha ee960bd"
+# 2026-11-05, local[*] (10 cores), commit ee960bd. Throwaway profiled run: not a measurement.
+./gradlew run --args="--input <shard>/data --output <scratchpad>/out-2025 --years 2025 --ops m1,o3 --run-id local-20261105-94 --runs-dir <scratchpad>/runs --git-sha ee960bd"
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|source_year|raw_trips|bad_fare|bad_distance|bad_passenger_count|bad_time_order|bad_zone|removed_trips|kept_trips|null_passenger_count|
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
+|2025       |48722602 |2870234 |1402958     |260208             |546304        |371657  |5122770      |43599832  |11611894            |
++-----------+---------+--------+------------+-------------------+--------------+--------+-------------+----------+--------------------+
++------------+----------+-------+-------------+------+---------+
+|service_zone|trip_count|rows   |rows_with_lag|spikes|zero_mean|
++------------+----------+-------+-------------+------+---------+
+|Airports    |2982007   |17520  |16176        |462   |0        |
+|Boro Zone   |4139614   |1795800|1658040      |214870|151042   |
+|EWR         |1182      |8760   |8088         |901   |887      |
+|Yellow Zone |36477000  |481800 |444840       |10692 |26697    |
+|NULL        |43599803  |2303880|2127144      |226925|178626   |
++------------+----------+-------+-------------+------+---------+
+profiled run <scratchpad>/runs/local-20261105-94
+profile    |   wall s | stages |  tasks |  shuffle R |  shuffle W |      spill | max skew
+m1         |     7.55 |      2 |     13 |    1.2 KiB |    1.2 KiB |        0 B |     1.03
+o3         |    10.66 |      8 |     76 |  189.4 MiB |  156.5 MiB |        0 B |     1.21
+BUILD SUCCESSFUL in 25s

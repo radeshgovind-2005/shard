@@ -221,6 +221,85 @@ The criteria overlap (D5): in January they sum to 291,491, against 271,401 remov
 - **L10. The window shuffles and sorts every trip.** No partial aggregate shrinks the data before the `Exchange`, and on 2025 the sort spills in almost every task. Candidate rewrite: `groupBy(PULocationID, hour_of_day)` for count/mean/σ (at most 6,312 rows, partial aggregation before a tiny shuffle), then broadcast the bucket stats back to the trips: no trip-sized shuffle, no sort, no spill. Results must stay identical (counts exact; flags identical, mean and σ within the 10⁻¹² relative tolerance).
 - **L11. Skew is latent, not gone.** The bucket skew is real before AQE (3.1× rows per hash partition) and is hidden by coalescing about 18 partitions per task. It would show with more shuffle partitions or more cores (DI cluster), or with AQE's coalescing off. Worth one profiled run with `spark.sql.adaptive.coalescePartitions.enabled=false` to measure it, and for the scalability section: as cores grow, fewer partitions get merged per task. AQE's skew handling only covers joins, so a window can't be split.
 
+### O3: demand forecasting features (2026-11-05, `feat/o3-demand-forecasting` at `ee960bd`: O3 plus main `9b4cc8a`)
+
+**Provenance.** No run-ids in LOG → Runs: development runs, all run by Claude. The post-run plans and stage tables come from throwaway profiled runs (`local-20261105-93` for 2025-01, `local-20261105-94` for 2025, `--runs-dir <scratchpad>`; O1 used -91 and -92). They are used only because the profiler writes the final (post-AQE) plan without a code change. Their times are **not** baseline measurements. Raw evidence, with the command for each file, is in [`observations/o3-20261105/`](observations/o3-20261105/README.md).
+
+**What O3 computes** (report §2; decisions D23–D30 in README → O3):
+1. Cleaned trips → `hour_index` (zone-free, D24) → `groupBy(PULocationID, hour_index)`.
+2. The **grid** (`range(1..263) × range(hours of --years)`) is left-joined with those counts, and missing counts become 0 (D25). `pickup_date`, `day_of_week` and `hour_of_day` are derived from `hour_index`.
+3. `avg` and `var_samp` over the whole (`PULocationID`, `day_of_week`, `hour_of_day`) window (D26).
+4. **The 4-week-lag self-join:** the zero-filled grid, shifted by +672 hours, is left-joined back on (`PULocationID`, `hour_index`), with no hint (D27).
+5. `demand_index` and `is_demand_spike` (D28), then the `service_zone` join (D29).
+6. Parquet in `<output>/o3/`, not partitioned.
+
+**Correctness: verified.** Every invariant holds, and the trips missing from Σ `trip_count` equal an independent count (`out-of-range-trips.txt`: M1's five criteria written from scratch in `spark-sql`, pickups outside the range).
+
+| Where | `--years` | Σ `trip_count` | M1 `kept_trips` | out of range (SQL) | rows | rows_with_lag | spikes | zero_mean | evidence |
+|---|---|---|---|---|---|---|---|---|---|
+| local `local[*]` | 2025-01 | **3,203,803** ✅ | 3,203,825 | 22 ✅ | **195,672** ✅ | **18,936** ✅ | 15,685 | 60,155 | `console-local-2025-01.txt` |
+| Docker, 2 workers | 2025-01 | **3,203,803** ✅ | 3,203,825 | | 195,672 | 18,936 | 15,685 | 60,155 | `console-docker-2025-01.txt`, identical per service zone |
+| local `local[*]` | 2025 | **43,599,803** ✅ | 43,599,832 | 29 ✅ | **2,303,880** ✅ | **2,127,144** ✅ | 226,925 | 178,626 | `console-local-2025.txt` |
+
+- **The out-of-range trips** are exactly roadmap 02's stray-dated trips outside 2025: pickups in 2007 (1), 2008 (1), 2009 (6) and 2024 (21). On 2025-01 they are the 22 January-file trips dated outside January.
+- **Service zones:** 2 Airports zones, 205 Boro Zone, 1 EWR, 55 Yellow Zone: all 263, and no row is lost in the inner join (D29).
+- **Local vs Docker, cell by cell** (2025-01, `local-vs-docker-diff-2025-01.txt`): 195,672 rows on both sides, all of them matched on (zone, date, hour).
+  - Exactly equal: every key, count, lag, flag, mean and demand index, and the nulls in the same places.
+  - Not equal: `hist_var_trips` in 27,588 rows (the exact `EXCEPT ALL` finds these, both ways), by at most **2.4 × 10⁻¹⁵ relative**. That's float summation order, as in M2's methodology note.
+- **Unit tests** (`forecast/DemandForecastTest`, 10 tests; `cli/ParseArgsTest` +1; `make check` green):
+  - the exact schema; rows = zones × hours
+  - zero-fill: μ = 1/3 and variance 1, where averaging non-empty hours would give 3
+  - the lag across the January–February boundary is exactly 28 days back; null before the range, 0 for an empty lag hour
+  - a hand-made spike with DI 5 is flagged, and the rest of its bucket has 0.5; a zero mean gives a null DI and no spike
+  - a 2024 trip is left out; `service_zone` comes from the lookup
+  - in a Europe/Lisbon session, the hour index and each trip's hour are unchanged on 2025-03-30 and 2025-10-26
+
+**Finding: the join strategy flips with scale** (`plan-o3-final-local-*.txt`, `join-size-estimates.txt`). Report §2 and the O3 justification:
+
+| join | 2025-01 (initial and final plan) | 2025 (initial and final plan) |
+|---|---|---|
+| grid cross join (`Range` × `Range`) | `BroadcastNestedLoopJoin BuildLeft` | same |
+| zero-fill left join (grid ⋈ trip counts) | `BroadcastHashJoin LeftOuter BuildRight` | `SortMergeJoin LeftOuter` |
+| **4-week-lag self-join** | **`BroadcastHashJoin LeftOuter BuildRight`** | **`SortMergeJoin LeftOuter`** |
+| `service_zone` join (12,331 B CSV) | `BroadcastHashJoin Inner BuildRight` | same |
+
+- **The choice is static, not AQE's.** The initial plan already has the same join types as the final plan at both scales. Catalyst's estimate for the self-join's build side (the shifted grid) is **9,576,886 B on 2025-01**, 8.7 % under `autoBroadcastJoinThreshold` (10,485,760 B), and **122,444,757 B on 2025**. The zero-fill join's build side (the trip counts) is 5,724,990 B and 80,319,996 B.
+- **The estimate is file bytes scaled by row width, not rows** (CBO is off). Replayed without `loadTrips`' `_metadata.file_path` projection, the same 2025-01 build side is estimated at 11,621,525 B, which is over the threshold. So the hidden metadata columns alone decide that one month broadcasts. The real 2025-01 lag side is 195,672 rows of three columns.
+- **Consequence for Part C:** a one-month run doesn't show O3's SortMergeJoin. The O3 join story has to be profiled on 2025 (or more data), where both grid joins shuffle and sort.
+
+**Exchanges and reuse** (final plans; byte counts from `stages-local-*.json`):
+- **2025, five shuffles, 164.0 MB written and 198.6 MB read** (the profiler's 156.5 / 189.4 MiB):
+  1. the trip aggregate `(PULocationID, hour_index)`: 16.7 MB from 12 scan tasks
+  2. the grid side of the zero-fill join `(PULocationID, hour_index)`: 17.8 MB
+  3. the bucket window `(PULocationID, day_of_week, hour_of_day)`: 36.5 MB
+  4. the self-join's current side, re-shuffled after the window to `(PULocationID, hour_index)`: **67.3 MB**
+  5. the self-join's lag side (shifted grid): **25.7 MB**
+- **`ReusedExchange` appears, but only below the zero-fill join.** Both self-join sides reuse exchanges 1 and 2, so the trip scan and aggregate run once. The zero-fill **SortMergeJoin itself runs twice** (stages 12 and 13 each read the same 34.5 MB), once per self-join side.
+- **2025-01, two shuffles, 5.2 MB** (the trip aggregate 1.8 MB, the window 3.3 MB). The trip counts' `BroadcastExchange` is reused (`ReusedExchange`) by the lag side, and the final stage (window, both broadcast joins, write) ran as 3 tasks after AQE coalescing.
+- **Skew:** none in the O3 stages on 2025 (max/median ≤ 1.11). On 2025-01 the scan stage shows 10.0 (L9's single-file split pattern). Output: 23,986,074 B for 2025 and 941,907 B for 2025-01.
+
+**Finding: the spike flag mostly catches sparse buckets** (2025, `spike-breakdown-2025.txt`). 226,925 of 2,303,880 rows are flagged (9.85 %):
+
+| bucket mean | rows | spikes | of which 1 trip |
+|---|---|---|---|
+| < 0.5 | 760,156 | 97,141 | 81,368 |
+| 0.5–1 | 302,406 | 50,249 | 0 |
+| 1–10 | 785,833 | 74,451 | 0 |
+| 10–100 | 304,779 | 4,849 | 0 |
+| ≥ 100 | 150,706 | 235 | 0 |
+
+- 98 % of the flags are in buckets averaging under 10 trips an hour, where DI > 2 is Poisson noise: in a bucket with mean < 0.5, a single trip is already a spike. The maximum DI is exactly **53**, the D26 cap (one trip in 53 weeks). Only 235 flags fall in buckets averaging ≥ 100 trips, mostly the airports (132, 138) and Penn Station (186) at night (top: zone 138, 2025-05-15 00:00, 444 trips against a mean of 106.8).
+- This is the spec's ratio rule. A minimum count or a variance-scaled rule would change what O3 computes. For the report, the flag rate goes in the limitations (§6), as M3's 46 % did.
+
+**Leads for the profiler** (each needs a profiled run on 2025 first; L10–L11 are O1's):
+- **L4 again.** Nothing is cached, so with every operation selected, O3's job scans and cleans the trip Parquet once more.
+- **L12. The self-join is a SortMergeJoin on 2025, sorting about 93 MB of shuffle.** It is the spec's required shape and O3's main optimisation target. The candidates are the ones the brief named: a broadcast hint on the 25.7 MB lag side, co-partitioning both sides on (`PULocationID`, `hour_index`), or replacing the join with a window `lag(672)` over `PULocationID` ordered by `hour_index`, which removes it. Each must keep the output identical (lag null before the range).
+- **L13. The zero-fill join runs twice.** The self-join's two sides share the trip exchanges but not the joined grid, so the 34.5 MB zero-fill SortMergeJoin is read and computed twice. Persisting `hourly` (or the window-`lag` rewrite of L12) would compute it once.
+- **L14. The window and the self-join want different partitioning.** The bucket window shuffles by (`PULocationID`, `day_of_week`, `hour_of_day`), and the self-join then re-shuffles the same 2.3M rows by (`PULocationID`, `hour_index`): the 67.3 MB exchange. Running the lag before the window, or partitioning both on `PULocationID` alone, could drop one exchange. This is a plan change with identical results.
+- **L15. One month isn't representative.** On 2025-01 every grid join broadcasts, and the self-join's build-side estimate sits 8.7 % under the threshold. Any O3 baseline or OPT must be measured on 2025, and say so.
+
+**Setup of these runs.** The worktree has no `data/`, so every run read the main checkout's `data/`. Local outputs and run folders went to the session scratchpad. For Docker, the merged jar was `docker cp`'d into the master (`/tmp/shard-o3.jar`) instead of overwriting the main checkout's `build/libs/shard-all.jar`, and the output went to `/output/dev-o3` (the main checkout's `output/dev-o3/`, gitignored). The SQL checks ran in the Docker master (`spark-sql --master local[2]`) over copies of the local outputs in `/tmp`.
+
 ## Hypotheses
 
 Written by `spark-profiler`. Each needs evidence: metric + run-id.

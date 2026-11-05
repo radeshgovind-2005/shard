@@ -10,6 +10,9 @@ enum class Operation(val readsZones: Boolean) {
 
     // O1 joins the pickup borough for the weekday vs weekend rate table.
     O1(readsZones = true),
+
+    // O3 annotates each zone with its service_zone.
+    O3(readsZones = true),
     ;
 
     companion object {

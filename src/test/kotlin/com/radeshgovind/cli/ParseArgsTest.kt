@@ -40,6 +40,11 @@ class ParseArgsTest {
     }
 
     @Test
+    fun `reads the optional operation O3`() {
+        assertEquals(setOf(Operation.M1, Operation.O3), parsed("--ops", "m1,o3").operations)
+    }
+
+    @Test
     fun `requires input and output`() {
         assertContains(reasonFor("--output", "out"), "--input")
         assertContains(reasonFor("--input", "data"), "--output")
@@ -62,6 +67,7 @@ class ParseArgsTest {
     @Test
     fun `rejects unknown operations`() {
         assertContains(reasonWithRequired("--ops", "m4"), "--ops")
+        assertContains(reasonWithRequired("--ops", "o4"), "--ops")
         assertContains(reasonWithRequired("--ops", "m1,,m2"), "--ops")
     }
 

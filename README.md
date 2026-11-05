@@ -92,12 +92,12 @@ shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <lis
 | `--output` | yes | – | folder for results (`output` locally, `/output` in Docker); each operation writes `<output>/<op>/` |
 | `--years` | no | `2025` | `YYYY` (one year), `YYYY-YYYY` (whole years), or `YYYY-MM` (one month). 2011 onwards, because 2009–2010 have no zone IDs. |
 | `--fraction` | no | `1.0` | share of trips to keep, 0 < f ≤ 1, sampled with a fixed seed (42), so the same fraction keeps the same rows every run |
-| `--ops` | no | every operation (`m1,m2,m3,o1`) | which results to write, comma-separated |
+| `--ops` | no | every operation (`m1,m2,m3,o1,o3`) | which results to write, comma-separated |
 | `--run-id` | no | none | turns profiling on: `<local\|docker\|di>-<yyyymmdd>-<nn>`, e.g. `local-20261105-01`. Never reuse one: a run folder that already exists exits with code 2. |
 | `--runs-dir` | no | `experiments/runs` | where run folders go (`/runs` in Docker). Only with `--run-id`. |
 | `--git-sha` | no | none | the commit that ran, recorded in `run.json`: pass `$(git rev-parse --short HEAD)`. Only with `--run-id`. |
 
-Exit codes: `0` success, `2` bad arguments, missing input files or a reused run id (checked before Spark starts), `1` a failure while Spark runs. The input check covers every requested month's trip file and, when M2, M3 or O1 is requested, `taxi_zone_lookup.csv`.
+Exit codes: `0` success, `2` bad arguments, missing input files or a reused run id (checked before Spark starts), `1` a failure while Spark runs. The input check covers every requested month's trip file and, when M2, M3, O1 or O3 is requested, `taxi_zone_lookup.csv`.
 
 ### Profiling
 
@@ -169,6 +169,25 @@ Starts from M1's cleaned trips. Each trip gets `fare_per_km`, its bucket's trip 
 - **D22: the baseline is the plain window.** No `broadcast()`, `cache()` or repartitioning. Computing the bucket statistics with a `groupBy` and broadcasting them back would avoid shuffling every trip, but it's an optimisation, so it waits for a profiled run (LOG → L10, L11).
 
 Output: `<output>/o1/` (Parquet, not partitioned, under 100 rows): `day_type, payment_type, pickup_borough, trips, flagged_trips, anomaly_rate`. The run then prints the whole table, and the trips, flagged trips and rate per day type, with the total on the last row (`day_type` = null).
+
+### O3: demand forecasting features
+
+Starts from M1's cleaned trips. It counts trips per pickup zone and wall-clock hour, `c(zone, hour)`, on a dense grid of zones × hours, then adds per (`PULocationID`, `day_of_week`, `hour_of_day`) bucket the mean and variance of `c`. It joins each hour to the same hour 4 weeks earlier (the spec's self-join) and derives a demand index and a spike flag. The last step annotates each row with the zone's `service_zone`.
+
+- **D23: "current" is one (zone, date, hour) observation.** The output has one row per grid cell, with its count, its bucket's mean and variance (repeated on each of the bucket's rows), its own 4-week-lag count, the demand index and the flag.
+- **D24: the hour index has no time zone.** `hour_index = unix_date(to_date(pickup)) × 24 + hour(pickup)`. On `TIMESTAMP_NTZ` both functions read the stored wall-clock fields, so nothing is cast to `TIMESTAMP` (unlike `timestamp_diff`, D7), and a Europe/Lisbon session gives the same hours as UTC, also across Lisbon's DST switches.
+  - Every day has 24 hours. NYC's spring-forward hour (2025-03-09 02:00) is always 0, and its fall-back hour (2025-11-02 01:00) holds two real hours. The data stores no UTC offset, so this can't be fixed.
+  - The grid covers the `--years` range. A trip whose pickup falls outside it (the stray-dated trips of D4) has no grid row and is left out, so Σ `trip_count` = M1 `kept_trips` − those trips.
+- **D25: zero-fill.** The grid is zones 1–263 (every zone M1 keeps) × every hour of the range: 195,672 rows for 2025-01 and 2,303,880 for 2025. The hourly counts are left-joined onto it, and a missing count is 0. Averaging only the hours that had trips would give Σc / k_nonzero ≥ Σc / n, a mean biased upwards, most of all in quiet buckets, which is where a spike matters.
+- **D26: the bucket's mean (`hist_mean_trips`) and sample variance (`hist_var_trips`, as D10) cover every week of the range, the current one included.** That gives one value per bucket, as the spec words it, from one window over (`PULocationID`, `day_of_week`, `hour_of_day`). Every bucket spans at least 4 weeks, so the variance is never null.
+  - Caveats: this isn't a causal forecast, because it uses later weeks too.
+  - The current count is part of the mean, so the demand index can't exceed n, the number of weeks: 4–5 on one month, 52–53 on 2025.
+- **D27: the 4-week lag is a left self-join.** The zero-filled grid is joined with itself on `PULocationID` and `hour_index − 672` (28 days × 24 hours, so the same weekday and hour). It's a plain join, with no hint or configuration change: the baseline. An hour whose lag hour is before the range keeps its row, with `lag_4w_trip_count` = **null** ("no history"; 0 would be a made-up observation). An hour whose lag hour had no trips gets 0. Catalyst picks the join by estimated size: on 2025 it's a SortMergeJoin, but on 2025-01 the shifted grid is estimated just under the 10 MB broadcast threshold, so one month runs it as a broadcast join (LOG → Observations → O3).
+- **D28: `demand_index` = `trip_count` / `hist_mean_trips`, and `is_demand_spike` = `demand_index` > 2.0.** When the mean is 0, the index is null (ANSI raises on a division by zero) and the flag is false. Because the mean includes the current hour (D26), a mean of 0 means the count is 0 too: no demand, so not a spike.
+- **D29: `service_zone`** comes from a plain inner join with the zone lookup (no hint, like M2's borough join). The lookup has all of zones 1–263, so no row is lost.
+- **D30: one month shows little.** On 2025-01, each bucket has 4–5 weeks, and only January 29–31 have a lag (18,936 of 195,672 rows). 2025 is the meaningful run: 52–53 weeks per bucket, with a lag on 2,127,144 of 2,303,880 rows. On 2025, 9.85 % of rows are flagged, 98 % of them in buckets averaging under 10 trips, where a ratio above 2 is mostly noise (one trip in a bucket with a mean under 0.5 is already a spike). The spec's ratio rule is kept as written, and the rate goes in the report's limitations.
+
+Output: `<output>/o3/` (Parquet, not partitioned), one row per zone and hour of the range: `PULocationID, service_zone, pickup_date, day_of_week, hour_of_day, trip_count, lag_4w_trip_count, hist_mean_trips, hist_var_trips, demand_index, is_demand_spike`. `day_of_week` is 1 = Sunday … 7 = Saturday, as in M2. The run then prints per service zone the trips, rows, rows with a lag (`rows_with_lag`), flagged rows (`spikes`) and rows with a zero mean (`zero_mean`), with the total on the last row (`service_zone` = null).
 
 ### Local
 
