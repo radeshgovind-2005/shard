@@ -12,7 +12,5 @@ import java.nio.file.Path
 fun SparkSession.loadZones(input: Path): Dataset<Row> =
     read().option("header", "true").schema(ZONE_SCHEMA).csv(zonesFile(input).toString())
 
-fun zonesFile(input: Path): Path = input.resolve("taxi_zone_lookup.csv")
-
 // Explicit schema: inferSchema would cost an extra pass over the file.
 private const val ZONE_SCHEMA = "$LOCATION_ID INT, $BOROUGH STRING, $ZONE STRING, $SERVICE_ZONE STRING"

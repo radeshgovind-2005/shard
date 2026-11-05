@@ -6,6 +6,8 @@ import com.radeshgovind.cli.USAGE
 import com.radeshgovind.cli.parseArgs
 import com.radeshgovind.ingest.TripFiles
 import com.radeshgovind.ingest.findTripFiles
+import com.radeshgovind.ingest.missingZonesFile
+import java.nio.file.Path
 import kotlin.system.exitProcess
 
 fun main(rawArgs: Array<String>) {
@@ -17,9 +19,14 @@ fun main(rawArgs: Array<String>) {
 
 private fun runWithInputFiles(args: PipelineArgs) {
     when (val files = findTripFiles(args.input, args.months)) {
-        is TripFiles.Found -> runWithSpark(args, files)
-        is TripFiles.Missing -> exitWithMissingFiles(files)
+        is TripFiles.Found -> runWithZonesFile(args, files)
+        is TripFiles.Missing -> exitWithMissingFiles(files.paths)
     }
+}
+
+private fun runWithZonesFile(args: PipelineArgs, files: TripFiles.Found) {
+    val missing = missingZonesFile(args.input, args.operations)
+    if (missing == null) runWithSpark(args, files) else exitWithMissingFiles(listOf(missing))
 }
 
 private fun runWithSpark(args: PipelineArgs, files: TripFiles.Found) {
@@ -32,9 +39,9 @@ private fun exitWithUsage(reason: String): Nothing {
     exitProcess(BAD_INPUT)
 }
 
-private fun exitWithMissingFiles(files: TripFiles.Missing): Nothing {
+private fun exitWithMissingFiles(paths: List<Path>): Nothing {
     System.err.println("shard: missing input files (run `make data`):")
-    files.paths.forEach { System.err.println("  $it") }
+    paths.forEach { System.err.println("  $it") }
     exitProcess(BAD_INPUT)
 }
 

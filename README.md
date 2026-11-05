@@ -93,7 +93,7 @@ shard --input <dir> --output <dir> [--years <spec>] [--fraction <f>] [--ops <lis
 | `--fraction` | no | `1.0` | share of trips to keep, 0 < f ≤ 1, sampled with a fixed seed (42), so the same fraction keeps the same rows every run |
 | `--ops` | no | `m1,m2,m3` | which results to write, comma-separated |
 
-Exit codes: `0` success, `2` bad arguments or missing input files (checked before Spark starts), `1` a failure while Spark runs.
+Exit codes: `0` success, `2` bad arguments or missing input files (checked before Spark starts), `1` a failure while Spark runs. The input check covers every requested month's trip file and, when M2 or M3 is requested, `taxi_zone_lookup.csv`.
 
 ### M1: ingestion and cleaning
 
