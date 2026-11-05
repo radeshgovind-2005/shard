@@ -1,0 +1,24 @@
+# javap evidence for D7 (Spark 4.2.1 jars from the Gradle cache), 2026-11-05
+
+## $ javap -cp spark-sql-api_2.13-4.2.1.jar org.apache.spark.sql.functions | grep -E ' (timestamp_diff|dayofweek|hour)\('
+  public static org.apache.spark.sql.Column timestamp_diff(java.lang.String, org.apache.spark.sql.Column, org.apache.spark.sql.Column);
+  public static org.apache.spark.sql.Column hour(org.apache.spark.sql.Column);
+  public static org.apache.spark.sql.Column dayofweek(org.apache.spark.sql.Column);
+
+## $ javap -cp spark-catalyst_2.13-4.2.1.jar org.apache.spark.sql.catalyst.expressions.TimestampDiff (class header)
+public class org.apache.spark.sql.catalyst.expressions.TimestampDiff extends org.apache.spark.sql.catalyst.expressions.BinaryExpression implements org.apache.spark.sql.catalyst.expressions.ImplicitCastInputTypes,org.apache.spark.sql.catalyst.expressions.TimeZoneAwareExpression,java.io.Serializable {
+
+## $ javap -c ... TimestampDiff | inputTypes(): both inputs are TimestampType (so NTZ is implicitly cast in the session time zone)
+  public scala.collection.immutable.Seq<org.apache.spark.sql.types.AbstractDataType> inputTypes();
+       4: getstatic     #166                // Field org/apache/spark/sql/types/TimestampType$.MODULE$:Lorg/apache/spark/sql/types/TimestampType$;
+      11: getstatic     #166                // Field org/apache/spark/sql/types/TimestampType$.MODULE$:Lorg/apache/spark/sql/types/TimestampType$;
+      14: getstatic     #171                // Field scala/collection/immutable/Nil$.MODULE$:Lscala/collection/immutable/Nil$;
+
+## $ javap -c -p ... SubtractTimestamps | zoneIdForType: the zone is chosen per data type (UTC for TIMESTAMP_NTZ)
+  public java.time.ZoneId zoneIdForType(org.apache.spark.sql.types.DataType);
+       2: invokestatic  #87                 // InterfaceMethod org/apache/spark/sql/catalyst/expressions/TimeZoneAwareExpression.zoneIdForType$:(Lorg/apache/spark/sql/catalyst/expressions/TimeZoneAwareExpression;Lorg/apache/spark/sql/types/DataType;)Ljava/time/ZoneId;
+      24: invokevirtual #201                // Method zoneIdForType:(Lorg/apache/spark/sql/types/DataType;)Ljava/time/ZoneId;
+
+## Hour: GetTimeField (AnyTimestampType input, zoneIdForType); DayOfWeek: GetDateField (DATE input; NTZ -> DATE is a truncation)
+public class org.apache.spark.sql.catalyst.expressions.Hour extends org.apache.spark.sql.catalyst.expressions.UnaryExpression implements org.apache.spark.sql.catalyst.expressions.GetTimeField,java.io.Serializable {
+public class org.apache.spark.sql.catalyst.expressions.DayOfWeek extends org.apache.spark.sql.catalyst.expressions.UnaryExpression implements org.apache.spark.sql.catalyst.expressions.GetDateField,java.io.Serializable {
