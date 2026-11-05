@@ -1,0 +1,79 @@
+package com.radeshgovind.cli
+
+import java.nio.file.Path
+import java.time.YearMonth
+import kotlin.test.Test
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+
+class ParseArgsTest {
+    @Test
+    fun `defaults to all of 2025, the whole dataset and every operation`() {
+        val expected =
+            PipelineArgs(Path.of("data"), Path.of("out"), months("2025-01", "2025-12"), Fraction.WHOLE, Operation.ALL)
+        assertEquals(expected, parsed())
+    }
+
+    @Test
+    fun `reads a single month`() {
+        assertEquals(months("2025-03", "2025-03"), parsed("--years", "2025-03").months)
+    }
+
+    @Test
+    fun `reads a range of whole years`() {
+        assertEquals(months("2024-01", "2025-12"), parsed("--years", "2024-2025").months)
+    }
+
+    @Test
+    fun `reads fraction and operations, ignoring case`() {
+        val args = parsed("--fraction", "0.1", "--ops", "m2,M3")
+        assertEquals(Fraction(0.1), args.fraction)
+        assertEquals(setOf(Operation.M2, Operation.M3), args.operations)
+    }
+
+    @Test
+    fun `requires input and output`() {
+        assertContains(reasonFor("--output", "out"), "--input")
+        assertContains(reasonFor("--input", "data"), "--output")
+    }
+
+    @Test
+    fun `rejects years before 2011, impossible months and reversed ranges`() {
+        listOf("2010", "2025-13", "2026-2025", "25", "2025-1", "2025/01").forEach {
+            assertContains(reasonWithRequired("--years", it), "--years", message = "for --years $it")
+        }
+    }
+
+    @Test
+    fun `rejects fractions that are not above 0 and at most 1`() {
+        listOf("0", "1.5", "-0.2", "abc", "NaN").forEach {
+            assertContains(reasonWithRequired("--fraction", it), "--fraction", message = "for --fraction $it")
+        }
+    }
+
+    @Test
+    fun `rejects unknown operations`() {
+        assertContains(reasonWithRequired("--ops", "m4"), "--ops")
+        assertContains(reasonWithRequired("--ops", "m1,,m2"), "--ops")
+    }
+
+    @Test
+    fun `rejects repeated, unknown and value-less flags`() {
+        assertContains(reasonWithRequired("--input", "other"), "more than once")
+        assertContains(reasonWithRequired("--verbose", "yes"), "unknown flag")
+        assertContains(reasonWithRequired("--years"), "needs a value")
+        assertContains(reasonFor("--input", "--output", "out"), "needs a value")
+    }
+
+    private val required = arrayOf("--input", "data", "--output", "out")
+
+    private fun parsed(vararg extra: String): PipelineArgs =
+        assertIs<ArgsParse.Parsed>(parseArgs(required + extra)).args
+
+    private fun reasonWithRequired(vararg extra: String): String = reasonFor(*(required + extra))
+
+    private fun reasonFor(vararg raw: String): String = assertIs<ArgsParse.Invalid>(parseArgs(arrayOf(*raw))).reason
+
+    private fun months(first: String, last: String) = MonthRange(YearMonth.parse(first), YearMonth.parse(last))
+}
