@@ -1,9 +1,12 @@
 package com.radeshgovind.cli
 
-enum class Operation {
-    M1,
-    M2,
-    M3,
+// readsZones: the operation joins taxi_zone_lookup.csv, so Main checks that file before Spark starts.
+enum class Operation(val readsZones: Boolean) {
+    M1(readsZones = false),
+    M2(readsZones = true),
+
+    // M3 joins the borough from the zone lookup too (roadmap 00 §1d).
+    M3(readsZones = true),
     ;
 
     companion object {
