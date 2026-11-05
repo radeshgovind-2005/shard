@@ -5,7 +5,7 @@ plugins {
     id("com.diffplug.spotless") version "8.11.0"
 }
 
-group = "com.kognito"
+group = "com.radeshgovind"
 version = "1.0-SNAPSHOT"
 
 val sparkVersion = providers.gradleProperty("sparkVersion").get()
@@ -55,7 +55,7 @@ val sparkJvmArgs =
     )
 
 application {
-    mainClass = "com.kognito.MainKt"
+    mainClass = "com.radeshgovind.MainKt"
     applicationDefaultJvmArgs = sparkJvmArgs
 }
 

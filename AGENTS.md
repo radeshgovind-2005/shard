@@ -29,7 +29,7 @@ Commits follow Conventional Commits (enforced by commitlint).
 
 ## Architecture Map
 
-Current state: build only. `src/main/kotlin/Main.kt` (`com.kognito.MainKt`, the application and jar entry point) is still the Hello Kotlin template.
+Current state: build only. `src/main/kotlin/Main.kt` (`com.radeshgovind.MainKt`, the application and jar entry point) is still the Hello Kotlin template.
 
 - Build: `build.gradle.kts` (Spark 4.2.1 as a `spark` configuration: compile + run + test, kept out of the fat jar; Java 21; Spark's JVM module flags), `gradle.properties` (`sparkVersion`)
 - Data: `scripts/download-data.sh` → `data/trips/yellow_tripdata_YYYY-MM.parquet`, `data/taxi_zone_lookup.csv`, `data/MANIFEST.tsv`
@@ -39,7 +39,7 @@ TODO, once the pipeline exists: packages, and the data flow (load → M1 → M2 
 ## Code Conventions
 
 - **Style:** Kotlin official style, enforced by Spotless + ktlint (`intellij_idea`, 120 cols). Run `make format`; never hand-format.
-- **Structure:** follow the `kotlin-stepdown` skill (`.claude/skills/kotlin-stepdown/`). Entry point first, helpers below in call order, one level of abstraction per function, one concept per file, packages by feature (`com.kognito.ingest`, `.demand`, `.zones`, `.cli`).
+- **Structure:** follow the `kotlin-stepdown` skill (`.claude/skills/kotlin-stepdown/`). Entry point first, helpers below in call order, one level of abstraction per function, one concept per file, packages by feature (`com.radeshgovind.ingest`, `.demand`, `.zones`, `.cli`).
 - **Spark** (details in `references/spark.md` of that skill):
   - Steps are extension functions on `Dataset<Row>` that return `Dataset<Row>` and **never run actions**. Hidden `count()`/`show()` calls add Spark jobs and distort profiling.
   - Enforce the schema once at load; keep column names as constants; prefer built-in `functions.*` over UDFs.
