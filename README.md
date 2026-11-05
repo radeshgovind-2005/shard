@@ -89,7 +89,7 @@ make run ARGS="<pipeline arguments>"
 
 ```sh
 make jar   # build/libs/shard-all.jar
-spark-submit --class com.kognito.MainKt --master <master-url> build/libs/shard-all.jar <pipeline arguments>
+spark-submit --class com.radeshgovind.MainKt --master <master-url> build/libs/shard-all.jar <pipeline arguments>
 ```
 
 Still to document, as the assignment requires:

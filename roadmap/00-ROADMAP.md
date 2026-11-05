@@ -57,7 +57,7 @@ Those numbers are your "before" evidence and your "after" proof.
 `report()` and `compare(before, after)` then print the table and the % change.
 
 ### Doing it in Kotlin
-The spec says you may modify the Lab 3 profiler as you like. Port it to `com.kognito.profiling` and keep the same API shape and metric names, so the report can say it's the lab's method. One improvement is worth making: collect the metrics with a **`SparkListener`** (`onJobStart` and `onStageCompleted`) instead of HTTP calls. On the JVM it runs inside the driver, so it works on any cluster without access to port 4040, and it can also record per-task max and median durations for skew.
+The spec says you may modify the Lab 3 profiler as you like. Port it to `com.radeshgovind.profiling` and keep the same API shape and metric names, so the report can say it's the lab's method. One improvement is worth making: collect the metrics with a **`SparkListener`** (`onJobStart` and `onStageCompleted`) instead of HTTP calls. On the JVM it runs inside the driver, so it works on any cluster without access to port 4040, and it can also record per-task max and median durations for skew.
 
 ### The DI cluster
 The spec makes it conditional: the scalability section is "subject to DI cluster availability", and Docker Spark results are the mandatory minimum. Plan everything on Docker. If DI access arrives in time, the same jar runs there with a different `--master`. What you'd need is listed in [`docs/lab-inputs.md`](../docs/lab-inputs.md): login and VPN, the resource manager and master URL, the Spark and Java versions, node sizes and your allocation, where the data lives, and quotas.
@@ -89,7 +89,7 @@ The lab environment is [`../../../labs/compar-spark-docker/docker-spark-env/`](.
   docker compose -f docker/docker-compose.yml up -d --scale spark-worker=2
   ```
   ```bash
-  docker compose -f docker/docker-compose.yml exec spark-master /opt/spark/bin/spark-submit --class com.kognito.MainKt --master spark://spark-master:7077 /jars/shard-all.jar --input /data --years 2025-01 --output /output
+  docker compose -f docker/docker-compose.yml exec spark-master /opt/spark/bin/spark-submit --class com.radeshgovind.MainKt --master spark://spark-master:7077 /jars/shard-all.jar --input /data --years 2025-01 --output /output
   ```
 - [x] Fill in the Docker column of the Environment table in `experiments/LOG.md`, and tick the Docker items in `docs/lab-inputs.md`
 
@@ -104,10 +104,10 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 > **Write the straightforward version first. Don't pre-optimise.** No `broadcast()`, `cache()` or repartitioning yet. The baseline should be the natural implementation, so the profiler has real bottlenecks to find. Optimising it up front leaves the report with nothing to show and goes against "no speculative optimisation".
 
 ### 1a. Skeleton and CLI (`feat/pipeline-skeleton`)
-- [ ] `com.kognito.cli`: `PipelineArgs` with `--input` (dir containing `trips/` and `taxi_zone_lookup.csv`), `--years` (`2025`, `2024-2025`, `2025-01`), `--fraction` (sampling, e.g. `0.1`, for the 10–20% scale run), `--output`, and `--ops` (e.g. `m1,m2,m3`). Parse once at the edge.
+- [ ] `com.radeshgovind.cli`: `PipelineArgs` with `--input` (dir containing `trips/` and `taxi_zone_lookup.csv`), `--years` (`2025`, `2024-2025`, `2025-01`), `--fraction` (sampling, e.g. `0.1`, for the 10–20% scale run), `--output`, and `--ops` (e.g. `m1,m2,m3`). Parse once at the edge.
 - [ ] `Main.kt`: build the `SparkSession`. Set `master("local[*]")` **only if `spark.master` isn't already set**, so `make run` works locally and `spark-submit --master` wins on a cluster.
 - [ ] `runPipeline(spark, args)`: the top-level story, as in `references/spark.md`. Actions (`write`, `collect`) happen only here.
-- [ ] Packages: `com.kognito.ingest`, `.demand` (M2), `.zones` (M3), `.cli`, with `.profiling` later. One concept per file. Column names go in one `object TripColumns`.
+- [ ] Packages: `com.radeshgovind.ingest`, `.demand` (M2), `.zones` (M3), `.cli`, with `.profiling` later. One concept per file. Column names go in one `object TripColumns`.
 - [ ] Never write into `data/`. Outputs go under `--output` (e.g. `output/m1/`, `output/m2/`).
 
 ### 1b. M1: ingestion and cleaning (`feat/m1-ingestion`)
@@ -150,7 +150,7 @@ Workflow for each piece: `/new-branch feat <name>` → code → `make check` →
 | # | Phase | One line |
 |---|---|---|
 | 01 | O1–O4 choice and build | Choose 2 after M1–M3 run. O2 (shuffle volume, double zone join) and O3 (self-join for the 4-week lag) or O1 (skewed buckets) give the most to optimise. Justify the choice by the bottleneck each one exposes. |
-| 02 | Profiler port | Port `spark_profiler.py` to `com.kognito.profiling` with a `SparkListener`, plus JSON per run in `experiments/runs/<run-id>/`. Wrap each operation's action in `runPipeline`. |
+| 02 | Profiler port | Port `spark_profiler.py` to `com.radeshgovind.profiling` with a `SparkListener`, plus JSON per run in `experiments/runs/<run-id>/`. Wrap each operation's action in `runPipeline`. |
 | 03 | Baseline | Full local run (shuffle bytes, task counts) and a Docker run (wall-clock, per-stage times). Use the `spark-profiler` agent to log run-ids and ranked hypotheses in `LOG.md`. Use `explain("extended")` **after** the action (AQE). |
 | 04 | Optimisation loop | 2–3 optimisations, each through `spark-optimizer` (one change, results identical) and `benchmark-runner` (warm-up + n ≥ 3, median). Likely candidates: broadcast the zone lookup, column pruning in the scan, cache the cleaned trips that M2/M3/O* reuse, shuffle partitions/AQE, skew handling. |
 | 05 | Scalability on Docker | 10–20% sample vs full year, and `--scale spark-worker=2` vs the most workers your 24 GB fits. Use the `scalability-analyst` agent for speedup, efficiency, Amdahl/Gustafson ([`formulas-cheatsheet.md`](../docs/lectures/formulas-cheatsheet.md)). |

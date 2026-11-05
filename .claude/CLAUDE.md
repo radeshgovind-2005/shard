@@ -12,7 +12,7 @@
 
 | Path | What |
 |---|---|
-| `src/main/kotlin/` | Pipeline code (`com.kognito`) |
+| `src/main/kotlin/` | Pipeline code (`com.radeshgovind`) |
 | `src/test/kotlin/` | Tests (`make test`) |
 | `data/` | Local dataset only (`make data`): gitignored, blocked by `pre-commit` |
 | `experiments/LOG.md` | Environments, runs, hypotheses, optimisations: the source of every reported number |
