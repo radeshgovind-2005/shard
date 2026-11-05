@@ -1,0 +1,17 @@
+# M2 read-back table, local[*], --years 2025, 2026-11-05 13:52 (run by the user; transcribed from the pasted terminal output)
+# The M1 table of this run was above the part of the output that was pasted, so it isn't recorded here.
+
++--------------+----------+----+
+|pickup_borough|trip_count|rows|
++--------------+----------+----+
+|Bronx         |338947    |168 |
+|Brooklyn      |1469590   |168 |
+|EWR           |1182      |151 |
+|Manhattan     |37746355  |168 |
+|Queens        |4040112   |168 |
+|Staten Island |3646      |168 |
+|NULL          |43599832  |991 |
++--------------+----------+----+
+
+# From the same pasted output (Spark INFO, not measurements): the M2 scan stage (stage 7) had 12 tasks, and the final
+# aggregate fetched "12 (750.5 KiB) non-empty blocks".

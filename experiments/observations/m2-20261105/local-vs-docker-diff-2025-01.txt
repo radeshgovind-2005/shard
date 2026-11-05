@@ -1,0 +1,42 @@
+# M2 output, local vs Docker, 2025-01 (2026-11-05 ~14:00)
+
+Inputs:
+- d = Docker output, <shard>/output/m2 (spark-submit on 2 workers, 4 scan tasks)
+- l = local output, copied unchanged from the worktree's output/m2 to <shard>/output/m2-local-copy-20261105
+  (local[*], 10 scan tasks; the run that also printed plan-formatted-local-2025-01.txt)
+Both outputs come from the same jar code (the plan line in the local run only adds an explain()).
+
+Command (run inside the spark-master container, local[2]):
+
+  docker compose -f docker/docker-compose.yml exec -T spark-master /opt/spark/bin/spark-sql --master 'local[2]' \
+    --conf spark.ui.enabled=false -S -e "
+  CREATE TEMPORARY VIEW d USING parquet OPTIONS (path '/output/m2');
+  CREATE TEMPORARY VIEW l USING parquet OPTIONS (path '/output/m2-local-copy-20261105');
+  SELECT 'docker_minus_local', count(*) FROM (SELECT * FROM d EXCEPT ALL SELECT * FROM l);
+  SELECT 'local_minus_docker', count(*) FROM (SELECT * FROM l EXCEPT ALL SELECT * FROM d);
+  SELECT 'keys_and_counts_diff', count(*) FROM (SELECT pickup_borough, day_of_week, hour_of_day, trip_count FROM d
+    EXCEPT ALL SELECT pickup_borough, day_of_week, hour_of_day, trip_count FROM l);
+  SELECT 'cells_with_any_avg_diff', count(*),
+    max(abs(d.avg_fare - l.avg_fare)), max(abs(d.avg_duration_min - l.avg_duration_min)), max(abs(d.avg_distance - l.avg_distance)),
+    max(abs(d.avg_fare - l.avg_fare) / abs(l.avg_fare)), max(abs(d.avg_duration_min - l.avg_duration_min) / abs(l.avg_duration_min)),
+    max(abs(d.avg_distance - l.avg_distance) / abs(l.avg_distance))
+    FROM d JOIN l USING (pickup_borough, day_of_week, hour_of_day)
+    WHERE d.avg_fare <> l.avg_fare OR d.avg_duration_min <> l.avg_duration_min OR d.avg_distance <> l.avg_distance;
+  SELECT 'joined_cells', count(*) FROM d JOIN l USING (pickup_borough, day_of_week, hour_of_day);"
+
+Result (verbatim):
+
+  docker_minus_local       294
+  local_minus_docker       294
+  keys_and_counts_diff     0
+  cells_with_any_avg_diff  294  1.4210854715202004E-14  1.4210854715202004E-14  2.2737367544323206E-13  3.9554548840211477E-16  5.113049633831247E-16  3.359081303231974E-16
+  joined_cells             815
+
+Columns of cells_with_any_avg_diff: count, max |Δ avg_fare|, max |Δ avg_duration_min|, max |Δ avg_distance|,
+then the same three as relative differences.
+
+Reading: keys and trip_count are identical in all 815 cells. 294 cells differ only in the averages, by at most
+5.1e-16 relative (1-2 ulp of a double). Cause: floating-point addition is not associative, and the partial sums are
+added in a different order (10 scan tasks locally vs 4 on Docker). An exact EXCEPT ALL diff of M2 output is therefore
+not a valid "results identical" check between runs with different partitioning; compare keys and counts exactly and
+averages with a relative tolerance (e.g. 1e-12).
