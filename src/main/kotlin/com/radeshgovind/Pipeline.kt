@@ -17,6 +17,7 @@ import com.radeshgovind.demand.temporalDemand
 import com.radeshgovind.forecast.ForecastColumns.HIST_MEAN_TRIPS
 import com.radeshgovind.forecast.ForecastColumns.IS_DEMAND_SPIKE
 import com.radeshgovind.forecast.ForecastColumns.LAG_4W_TRIP_COUNT
+import com.radeshgovind.forecast.LagJoinPlan
 import com.radeshgovind.forecast.demandForecast
 import com.radeshgovind.forecast.zoneHourGrid
 import com.radeshgovind.ingest.TripColumns.PAYMENT_TYPE
@@ -64,7 +65,8 @@ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Fo
     }
     if (Operation.O3 in args.operations) {
         val grid = spark.zoneHourGrid(args.months)
-        writeDemandForecast(cleaned, grid, spark.loadZones(args.input), args.outputOf(Operation.O3), profiler)
+        val lagJoin = lagJoinPlanFor(args)
+        writeDemandForecast(cleaned, grid, spark.loadZones(args.input), lagJoin, args.outputOf(Operation.O3), profiler)
     }
     profiler.finish()
 }
@@ -159,16 +161,21 @@ private fun printAnomalyRates(spark: SparkSession, out: Path) {
 
 private const val MAX_RATE_ROWS = 200
 
+// OPT-3 (H6): O3's 4-week-lag self-join broadcasts its lag side; --skip-opts opt3 keeps the plain join (D27).
+private fun lagJoinPlanFor(args: PipelineArgs): LagJoinPlan =
+    if (args.isApplied(Optimisation.OPT3)) LagJoinPlan.BROADCAST_LAG_SIDE else LagJoinPlan.PLAIN
+
 // The grid (zones 1–263 × every hour of --years, D25) is a parameter, so its size is visible here. Not partitioned.
 private fun writeDemandForecast(
     cleaned: Dataset<Row>,
     grid: Dataset<Row>,
     zones: Dataset<Row>,
+    lagJoin: LagJoinPlan,
     out: Path,
     profiler: Profiler,
 ) {
     profiler.profile("o3") {
-        cleaned.demandForecast(grid, zones).write().mode(SaveMode.Overwrite).parquet(out.toString())
+        cleaned.demandForecast(grid, zones, lagJoin).write().mode(SaveMode.Overwrite).parquet(out.toString())
     }
     printForecastTotals(cleaned.sparkSession(), out)
 }

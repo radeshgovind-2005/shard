@@ -28,74 +28,91 @@ private typealias HourKey = Triple<Int, LocalDate, Int>
 
 class DemandForecastTest {
     @Test
-    fun `demandForecast has the O3 schema`() {
-        val forecast = fixture(TRIPS).demandForecast(janFebGrid(), zones())
-        assertEquals(EXPECTED_SCHEMA, forecast.schema().fields().map { it.name() to it.dataType() })
+    fun `demandForecast has the O3 schema`() = forEachPlan { plan ->
+        val forecast = fixture(TRIPS).demandForecast(janFebGrid(), zones(), plan)
+        assertEquals(EXPECTED_SCHEMA, forecast.schema().fields().map { it.name() to it.dataType() }, "$plan")
+    }
+
+    // OPT-3 (H6): both lag-join plans give every grid cell the same values; doubles within TOLERANCE.
+    @Test
+    fun `both lag-join plans give the same forecast`() {
+        val plain = janFeb(LagJoinPlan.PLAIN)
+        val broadcast = janFeb(LagJoinPlan.BROADCAST_LAG_SIDE)
+        assertEquals(plain.keys, broadcast.keys)
+        plain.forEach { (key, hour) -> assertSameHour(hour, broadcast.getValue(key), "$key") }
+    }
+
+    // OPT-3 (H6): the hint is what makes the plans differ, so it must be on the lag side's join only in that plan.
+    // On this tiny grid Catalyst broadcasts either way, so the physical join can't tell them apart.
+    @Test
+    fun `only the broadcast plan hints the lag side of the self-join`() {
+        assertEquals(1, broadcastHintsIn(LagJoinPlan.BROADCAST_LAG_SIDE))
+        assertEquals(0, broadcastHintsIn(LagJoinPlan.PLAIN))
     }
 
     // D25: one row per zone and hour, whether it had trips or not.
     @Test
-    fun `the grid has a row for every zone and hour`() {
-        assertEquals(2 * JAN_FEB_DAYS * 24, janFeb().size)
+    fun `the grid has a row for every zone and hour`() = forEachPlan { plan ->
+        assertEquals(2 * JAN_FEB_DAYS * 24, janFeb(plan).size, "$plan")
     }
 
     // D25: 3 trips in 1 of the 9 Wednesdays at 10:00. Zero-filled, μ = 3/9; averaging only the non-empty hour would
     // give 3. var_samp of (3, 0 × 8) = (8 × (1/3)² + (8/3)²) / 8 = 1.
     @Test
-    fun `an hour without trips counts as 0 in the mean`() {
-        val wednesdayTen = bucket(1, DayOfWeek.WEDNESDAY, 10)
-        assertEquals(9, wednesdayTen.size)
+    fun `an hour without trips counts as 0 in the mean`() = forEachPlan { plan ->
+        val wednesdayTen = bucket(plan, 1, DayOfWeek.WEDNESDAY, 10)
+        assertEquals(9, wednesdayTen.size, "$plan")
         wednesdayTen.values.forEach {
-            assertEquals(1.0 / 3.0, it.histMean, TOLERANCE)
-            assertEquals(1.0, it.histVar, TOLERANCE)
+            assertEquals(1.0 / 3.0, it.histMean, TOLERANCE, "$plan")
+            assertEquals(1.0, it.histVar, TOLERANCE, "$plan")
         }
-        assertEquals(3L, wednesdayTen.getValue(Triple(1, LocalDate.of(2025, 1, 15), 10)).tripCount)
+        assertEquals(3L, wednesdayTen.getValue(Triple(1, LocalDate.of(2025, 1, 15), 10)).tripCount, "$plan")
     }
 
     // D27: 2025-02-03 − 28 days = 2025-01-06, across the month boundary. January 6's own lag is in December, outside
     // the range: null, not 0. An hour whose lag hour had no trips gets 0.
     @Test
-    fun `the lag is the count exactly 28 days back`() {
-        val hours = janFeb()
-        assertEquals(2L, hours.getValue(Triple(2, LocalDate.of(2025, 2, 3), 8)).lag4w)
-        assertNull(hours.getValue(Triple(2, LocalDate.of(2025, 1, 6), 8)).lag4w)
-        assertEquals(0L, hours.getValue(Triple(2, LocalDate.of(2025, 2, 3), 9)).lag4w)
-        assertEquals(2L, hours.getValue(Triple(2, LocalDate.of(2025, 1, 6), 8)).tripCount)
+    fun `the lag is the count exactly 28 days back`() = forEachPlan { plan ->
+        val hours = janFeb(plan)
+        assertEquals(2L, hours.getValue(Triple(2, LocalDate.of(2025, 2, 3), 8)).lag4w, "$plan")
+        assertNull(hours.getValue(Triple(2, LocalDate.of(2025, 1, 6), 8)).lag4w, "$plan")
+        assertEquals(0L, hours.getValue(Triple(2, LocalDate.of(2025, 2, 3), 9)).lag4w, "$plan")
+        assertEquals(2L, hours.getValue(Triple(2, LocalDate.of(2025, 1, 6), 8)).tripCount, "$plan")
     }
 
     // D28: zone 1's Thursdays at 18:00 have 1 trip each, except 10 on January 23. 9 Thursdays, 18 trips: μ = 2.
     @Test
-    fun `a spike hour has a demand index above 2 and is flagged`() {
-        val thursdays = bucket(1, DayOfWeek.THURSDAY, 18)
-        assertEquals(9, thursdays.size)
+    fun `a spike hour has a demand index above 2 and is flagged`() = forEachPlan { plan ->
+        val thursdays = bucket(plan, 1, DayOfWeek.THURSDAY, 18)
+        assertEquals(9, thursdays.size, "$plan")
         val spike = thursdays.getValue(Triple(1, LocalDate.of(2025, 1, 23), 18))
-        assertEquals(5.0, spike.demandIndex!!, TOLERANCE)
-        assertTrue(spike.isSpike)
+        assertEquals(5.0, spike.demandIndex!!, TOLERANCE, "$plan")
+        assertTrue(spike.isSpike, "$plan")
         (thursdays - Triple(1, LocalDate.of(2025, 1, 23), 18)).values.forEach {
-            assertEquals(0.5, it.demandIndex!!, TOLERANCE)
-            assertFalse(it.isSpike)
+            assertEquals(0.5, it.demandIndex!!, TOLERANCE, "$plan")
+            assertFalse(it.isSpike, "$plan")
         }
     }
 
     // D28: a bucket with no trips at all has μ = 0: no demand index, and not a spike.
     @Test
-    fun `a zero mean gives a null demand index and no spike`() {
-        val empty = janFeb().getValue(Triple(1, LocalDate.of(2025, 1, 23), 3))
-        assertEquals(0.0, empty.histMean, TOLERANCE)
-        assertNull(empty.demandIndex)
-        assertFalse(empty.isSpike)
+    fun `a zero mean gives a null demand index and no spike`() = forEachPlan { plan ->
+        val empty = janFeb(plan).getValue(Triple(1, LocalDate.of(2025, 1, 23), 3))
+        assertEquals(0.0, empty.histMean, TOLERANCE, "$plan")
+        assertNull(empty.demandIndex, "$plan")
+        assertFalse(empty.isSpike, "$plan")
     }
 
     // D24: the trip dated 2024-12-31 has no grid row, so it's left out.
     @Test
-    fun `trip counts add up to the input trips inside the range`() {
-        assertEquals(TRIPS.size.toLong() - 1, janFeb().values.sumOf(Hour::tripCount))
+    fun `trip counts add up to the input trips inside the range`() = forEachPlan { plan ->
+        assertEquals(TRIPS.size.toLong() - 1, janFeb(plan).values.sumOf(Hour::tripCount), "$plan")
     }
 
     @Test
-    fun `service zone comes from the zone lookup`() {
-        val serviceZones = janFeb().entries.associate { it.key.first to it.value.serviceZone }
-        assertEquals(mapOf(1 to "EWR", 2 to "Boro Zone"), serviceZones)
+    fun `service zone comes from the zone lookup`() = forEachPlan { plan ->
+        val serviceZones = janFeb(plan).entries.associate { it.key.first to it.value.serviceZone }
+        assertEquals(mapOf(1 to "EWR", 2 to "Boro Zone"), serviceZones, "$plan")
     }
 
     // D24: Lisbon springs forward on 2025-03-30 (01:00 → 02:00) and falls back on 2025-10-26 (02:00 → 01:00).
@@ -111,7 +128,7 @@ class DemandForecastTest {
     @Test
     fun `each trip keeps its own hour across Lisbon's DST switches`() {
         withSessionTimeZone("Europe/Lisbon") {
-            val hours = forecastHours(fixture(DST_TRIPS), spark.zoneHourGrid(MARCH_TO_OCTOBER, 1..1))
+            val hours = forecastHours(fixture(DST_TRIPS), spark.zoneHourGrid(MARCH_TO_OCTOBER, 1..1), LagJoinPlan.PLAIN)
             DST_DATES.forEach { date ->
                 assertEquals((0..23).toList(), hours.keys.filter { it.second == date }.map { it.third }.sorted())
             }
@@ -121,10 +138,27 @@ class DemandForecastTest {
         }
     }
 
-    private fun janFeb(): Map<HourKey, Hour> = janFebHours
+    private fun forEachPlan(check: (LagJoinPlan) -> Unit) = LagJoinPlan.entries.forEach(check)
 
-    private fun bucket(zone: Int, day: DayOfWeek, hour: Int): Map<HourKey, Hour> =
-        janFeb().filterKeys { it.first == zone && it.second.dayOfWeek == day && it.third == hour }
+    private fun janFeb(plan: LagJoinPlan): Map<HourKey, Hour> = janFebHours.getValue(plan)
+
+    private fun bucket(plan: LagJoinPlan, zone: Int, day: DayOfWeek, hour: Int): Map<HourKey, Hour> =
+        janFeb(plan).filterKeys { it.first == zone && it.second.dayOfWeek == day && it.third == hour }
+
+    // Exact on everything but the doubles, which may differ in the last bits if the summation order changes.
+    private fun assertSameHour(expected: Hour, actual: Hour, key: String) {
+        assertEquals(expected.exactFields(), actual.exactFields(), key)
+        assertEquals(expected.histMean, actual.histMean, TOLERANCE, key)
+        assertEquals(expected.histVar, actual.histVar, TOLERANCE, key)
+        assertEquals(expected.demandIndex ?: 0.0, actual.demandIndex ?: 0.0, TOLERANCE, key)
+    }
+
+    private fun Hour.exactFields(): List<Any?> = listOf(serviceZone, tripCount, lag4w, isSpike, demandIndex == null)
+
+    // Counts the joins of the optimised logical plan that carry a broadcast hint on either side.
+    private fun broadcastHintsIn(plan: LagJoinPlan): Int =
+        fixture(TRIPS).demandForecast(janFebGrid(), zones(), plan).queryExecution().optimizedPlan().toString()
+            .split("\n").count { it.contains("Join ") && it.contains("strategy=broadcast") }
 
     private fun withSessionTimeZone(zone: String, block: () -> Unit) {
         val previous = spark.conf().get(SESSION_TIME_ZONE)
@@ -157,8 +191,10 @@ class DemandForecastTest {
     companion object {
         private lateinit var spark: SparkSession
 
-        // One forecast run shared by the Jan–Feb tests: built on first use, after startSpark().
-        private val janFebHours by lazy { forecastHours(fixture(TRIPS), janFebGrid()) }
+        // One forecast run per lag-join plan, shared by the Jan–Feb tests: built on first use, after startSpark().
+        private val janFebHours: Map<LagJoinPlan, Map<HourKey, Hour>> by lazy {
+            LagJoinPlan.entries.associateWith { forecastHours(fixture(TRIPS), janFebGrid(), it) }
+        }
 
         @JvmStatic
         @BeforeAll
@@ -172,8 +208,8 @@ class DemandForecastTest {
             spark.stop()
         }
 
-        private fun forecastHours(trips: Dataset<Row>, grid: Dataset<Row>): Map<HourKey, Hour> =
-            trips.demandForecast(grid, zones()).collectAsList().associate(::keyAndHour)
+        private fun forecastHours(trips: Dataset<Row>, grid: Dataset<Row>, plan: LagJoinPlan): Map<HourKey, Hour> =
+            trips.demandForecast(grid, zones(), plan).collectAsList().associate(::keyAndHour)
 
         // The JVM's default zone converts the DATE to java.sql.Date and back, so the date is unchanged.
         private fun keyAndHour(row: Row): Pair<HourKey, Hour> = Triple(
