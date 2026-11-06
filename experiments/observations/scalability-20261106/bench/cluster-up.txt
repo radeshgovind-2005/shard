@@ -1,0 +1,6 @@
+== workers=3 up 2026-11-06T12:21:47Z: alive 3 cores 6 memMiB 6144
+== workers=4 up 2026-11-06T12:24:15Z: alive 4 cores 8 memMiB 8192
+== workers=5 up 2026-11-06T12:26:36Z: alive 5 cores 10 memMiB 10240
+== workers=2 up 2026-11-06T12:29:14Z: alive 2 cores 4 memMiB 4096
+== workers=4 up 2026-11-06T12:32:01Z: alive 4 cores 8 memMiB 8192
+== workers=2 up 2026-11-06T12:34:23Z: alive 2 cores 4 memMiB 4096

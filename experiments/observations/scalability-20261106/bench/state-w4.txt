@@ -1,0 +1,40 @@
+== docker-20261106-58 label=w4 workers=4 frac=1.0 2026-11-06T12:24:15Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	60%; discharging; 1:41 remaining present: true
+12:24  up 10 days, 23:22, 1 user, load averages: 6.09 5.51 4.50
+== docker-20261106-59 label=w4 workers=4 frac=1.0 2026-11-06T12:24:47Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	60%; discharging; 1:41 remaining present: true
+12:24  up 10 days, 23:23, 1 user, load averages: 6.61 5.71 4.61
+== docker-20261106-60 label=w4 workers=4 frac=1.0 2026-11-06T12:25:20Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	59%; discharging; 1:22 remaining present: true
+12:25  up 10 days, 23:23, 1 user, load averages: 6.38 5.74 4.66
+== docker-20261106-61 label=w4 workers=4 frac=1.0 2026-11-06T12:25:53Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	58%; discharging; 1:14 remaining present: true
+12:25  up 10 days, 23:24, 1 user, load averages: 7.85 6.22 4.88
+== docker-20261106-70 label=w4 workers=4 frac=1.0 2026-11-06T12:32:01Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	52%; discharging; 0:50 remaining present: true
+12:32  up 10 days, 23:30, 1 user, load averages: 4.15 6.84 5.86
+== docker-20261106-71 label=w4 workers=4 frac=1.0 2026-11-06T12:32:39Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	51%; discharging; 0:50 remaining present: true
+12:32  up 10 days, 23:31, 1 user, load averages: 7.72 7.42 6.12
+== docker-20261106-72 label=w4 workers=4 frac=1.0 2026-11-06T12:33:15Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	51%; discharging; 0:50 remaining present: true
+12:33  up 10 days, 23:31, 1 user, load averages: 11.11 8.25 6.47
+== docker-20261106-73 label=w4 workers=4 frac=1.0 2026-11-06T12:33:47Z
+alive workers/cores: 4 8
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	50%; discharging; 0:49 remaining present: true
+12:33  up 10 days, 23:32, 1 user, load averages: 10.12 8.28 6.54

@@ -240,8 +240,8 @@ How to reproduce each experiment: every run is logged with its exact arguments i
 | JVM module flags for local runs and tests | Spark's `--add-opens` list (not `spark.*` settings; `spark-submit` adds them itself) | `sparkJvmArgs` in `build.gradle.kts` |
 
 **Cluster topology** (workers, cores and memory per worker):
-- **Local:** an Apple M5 with 10 cores and 24 GB.
-- **Docker Spark:** N workers (default 2), each offering 2 cores / 2 GB. Spark's default `spark.executor.memory` is 1g, so each worker runs one executor with 2 cores and 1024 MiB. The image is `spark:4.2.1-scala2.13-java21-ubuntu`, running on OrbStack on the same M5.
+- **Local:** an Apple M5 with 10 cores (4 performance + 6 efficiency) and 24 GB. `make run` uses `local[*]`. For a fixed core count (the scalability supplement), set the master through the JVM: `JAVA_TOOL_OPTIONS="-Dspark.master=local[4]" make run ARGS="..."`.
+- **Docker Spark:** N workers (default 2), each offering 2 cores / 2 GB. Spark's default `spark.executor.memory` is 1g, so each worker runs one executor with 2 cores and 1024 MiB. The image is `spark:4.2.1-scala2.13-java21-ubuntu`, running on OrbStack on the same M5 (OrbStack VM: 10 CPUs, 11.73 GiB). The scalability study used N = 2, 3, 4, 5 (`docker compose -f docker/docker-compose.yml down`, then `up -d --scale spark-worker=N`, and check `curl -s localhost:8080/json/` shows N alive workers). Five workers (10 task slots) is the most that makes sense: it already equals every host core, and the containers have no CPU quota. Memory is not the limit (≈ 1 GiB per worker during a run).
 - **DI cluster:** pending ([`docs/lab-inputs.md`](docs/lab-inputs.md)).
 
 All environments are recorded in the `experiments/LOG.md` environment table.
