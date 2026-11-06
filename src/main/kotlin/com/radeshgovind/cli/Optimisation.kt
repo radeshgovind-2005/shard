@@ -8,9 +8,6 @@ enum class Optimisation {
 
     // H2: O1's bucket statistics by a groupBy broadcast back onto the trips, instead of a window over every trip.
     OPT2,
-
-    // H6: broadcast the 4-week-lag side of O3's self-join, instead of a SortMergeJoin that re-shuffles both sides.
-    OPT3,
     ;
 
     val id: String get() = name.lowercase()

@@ -17,13 +17,13 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions.col
 
 // O3's output: one row per zone and hour of the grid (D23), from the cleaned trips.
-// The grid, the zones and the lag join's plan come in as parameters, so the grid's size and the join hint stay
-// visible in Pipeline.kt. `hourly` feeds both sides of the 4-week self-join (D27). Nothing is cached.
+// The grid and the zones come in as parameters, so the grid's size and any later join hint stay visible in Pipeline.kt.
+// `hourly` feeds both sides of the 4-week self-join (D27). Nothing is cached: that's the baseline.
 // No orderBy: it would add a sort and a shuffle for nothing.
-fun Dataset<Row>.demandForecast(grid: Dataset<Row>, zones: Dataset<Row>, lagJoin: LagJoinPlan): Dataset<Row> {
+fun Dataset<Row>.demandForecast(grid: Dataset<Row>, zones: Dataset<Row>): Dataset<Row> {
     val hourly = grid.withHourlyCounts(hourlyTripCounts())
     return hourly.withBucketStats()
-        .withFourWeekLag(hourly, lagJoin)
+        .withFourWeekLag(hourly)
         .withDemandIndex()
         .withServiceZone(zones)
         .select(*outputColumns())

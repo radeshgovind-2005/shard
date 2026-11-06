@@ -51,7 +51,6 @@ class ParseArgsTest {
         val args = parsed()
         assertEquals(emptySet(), args.skippedOptimisations)
         assertTrue(args.isApplied(Optimisation.OPT2))
-        assertTrue(args.isApplied(Optimisation.OPT3))
         assertEquals("", args.asRecord()["skip_opts"])
     }
 
@@ -65,23 +64,10 @@ class ParseArgsTest {
         }
     }
 
-    @Test
-    fun `skips several optimisations and records them in id order`() {
-        listOf("opt2,opt3", "OPT3,opt2", " opt3 , opt2 ").forEach {
-            val args = parsed("--skip-opts", it)
-            assertEquals(setOf(Optimisation.OPT2, Optimisation.OPT3), args.skippedOptimisations, "for --skip-opts $it")
-            assertEquals("opt2,opt3", args.asRecord()["skip_opts"], "for --skip-opts $it")
-        }
-        val onlyOpt3 = parsed("--skip-opts", "opt3")
-        assertTrue(onlyOpt3.isApplied(Optimisation.OPT2))
-        assertFalse(onlyOpt3.isApplied(Optimisation.OPT3))
-        assertEquals("opt3", onlyOpt3.asRecord()["skip_opts"])
-    }
-
-    // opt1 was measured and reverted (LOG → OPT-1), so its id is gone; opt4 doesn't exist yet.
+    // opt1 was measured and reverted (LOG → OPT-1), so its id is gone.
     @Test
     fun `rejects unknown optimisation ids and an empty or missing list`() {
-        listOf("opt1", "opt4", "opt9", "h1", "h6", "2", "opt2,opt1", "opt3,opt4", "opt2,,opt2", "opt2,").forEach {
+        listOf("opt1", "opt9", "h1", "2", "opt2,opt1", "opt2,,opt2", "opt2,").forEach {
             assertContains(reasonWithRequired("--skip-opts", it), "--skip-opts", message = "for --skip-opts $it")
         }
         assertContains(reasonWithRequired("--skip-opts", ""), "needs a value")
