@@ -1,0 +1,67 @@
+# python3 -I experiments/observations/remeasure-20261106/scripts/table.py experiments/runs local local-20261106-13,local-20261106-15,local-20261106-17,local-20261106-19,local-20261106-21,local-20261106-23,local-20261106-25 local-20261106-14,local-20261106-16,local-20261106-18,local-20261106-20,local-20261106-22,local-20261106-24,local-20261106-26 experiments/analysis/remeasure-20261106-wall.csv local-20261106-12,local-20261106-13,local-20261106-15,local-20261106-17,local-20261106-19,local-20261106-21,local-20261106-23,local-20261106-25,local-20261106-14,local-20261106-16,local-20261106-18,local-20261106-20,local-20261106-22,local-20261106-24,local-20261106-26 local-20261106-12
+
+## baseline (--skip-opts opt2) (n = 7: 13, 15, 17, 19, 21, 23, 25), median [min-max] (spread)
+  m1     wall s 4.52 [4.14-5.17] (22.8%)
+  m2     wall s 3.00 [2.74-3.19] (15.0%)
+  m3     wall s 5.14 [4.57-5.62] (20.4%)
+  o1     wall s 7.79 [6.90-8.33] (18.4%)
+  o3     wall s 5.31 [4.88-5.95] (20.2%)
+  total  wall s 25.94 [23.39-27.24] (14.8%)
+  shuffle R / W MiB (all runs) [689.9] / [656.9]
+    m1: R [0.0] W [0.0] MiB, disk spill [0.0] MiB
+    m2: R [0.7] W [0.7] MiB, disk spill [0.0] MiB
+    m3: R [1.0] W [1.0] MiB, disk spill [0.0] MiB
+    o1: R [498.8] W [498.8] MiB, disk spill [456.4] MiB
+    o3: R [189.4] W [156.5] MiB, disk spill [0.0] MiB
+  tasks [146], stages [24]
+  disk spill MiB [456.4], mem spill MiB [2752.0]
+  GC % 3.5 [3.1-4.1] (28.6%); CPU/run 0.71 [0.69-0.73] (6.2%); executor run s 201.9 [181.1-214.1] (16.3%)
+  max task skew (max/median) per op, max over runs: m1=1.11 m2=1.10 m3=1.13 o1=1.23 o3=6.18; overall 6.18
+  same, stages with median task >= 100 ms only: m1=1.11 m2=1.10 m3=1.13 o1=1.23 o3=1.43; overall 1.43 (max ratio among the shorter stages: 6.18)
+
+## final (OPT-2 on) (n = 7: 14, 16, 18, 20, 22, 24, 26), median [min-max] (spread)
+  m1     wall s 4.37 [4.25-4.83] (13.3%)
+  m2     wall s 2.86 [2.78-3.37] (20.6%)
+  m3     wall s 4.93 [4.47-5.07] (12.2%)
+  o1     wall s 4.51 [4.20-4.90] (15.5%)
+  o3     wall s 5.02 [4.80-6.85] (40.8%)
+  total  wall s 21.70 [20.77-24.73] (18.2%)
+  shuffle R / W MiB (all runs) [194.4] / [161.4]
+    m1: R [0.0] W [0.0] MiB, disk spill [0.0] MiB
+    m2: R [0.7] W [0.7] MiB, disk spill [0.0] MiB
+    m3: R [1.0] W [1.0] MiB, disk spill [0.0] MiB
+    o1: R [3.3] W [3.3] MiB, disk spill [0.0] MiB
+    o3: R [189.4] W [156.5] MiB, disk spill [0.0] MiB
+  tasks [150], stages [25]
+  disk spill MiB [0.0], mem spill MiB [0.0]
+  GC % 3.7 [3.5-4.0] (14.7%); CPU/run 0.77 [0.71-0.79] (10.8%); executor run s 163.2 [155.2-187.2] (19.6%)
+  max task skew (max/median) per op, max over runs: m1=1.08 m2=1.10 m3=1.10 o1=1.21 o3=10.00; overall 10.00
+  same, stages with median task >= 100 ms only: m1=1.08 m2=1.10 m3=1.10 o1=1.21 o3=1.74; overall 1.74 (max ratio among the shorter stages: 10.00)
+
+## paired differences (final minus the baseline run just before it), total s
+  -4.78, -1.59, -4.24, -5.14, -4.95, -2.62, -2.48; all negative: True; median -4.24
+
+## delta of medians: total -4.24 s (-16.3 %)
+  m1: 4.52 -> 4.37  -0.15 s (-3.3 %)
+  m2: 3.00 -> 2.86  -0.14 s (-4.7 %)
+  m3: 5.14 -> 4.93  -0.21 s (-4.1 %)
+  o1: 7.79 -> 4.51  -3.28 s (-42.1 %)
+  o3: 5.31 -> 5.02  -0.29 s (-5.5 %)
+
+## machine-state indicator: M1 scan stage (stage_id 1) executor_cpu_time_ms, per run (reference sessions: local-20261105-02 32566, local-20261105-09 21414, docker-20261105-02 22294, docker-20261105-06 14025)
+  local-20261106-12 final     22276 ms  (run 31931 ms, duration 3825 ms)
+  local-20261106-13 opt2      24219 ms  (run 36324 ms, duration 4218 ms)
+  local-20261106-14 final     20866 ms  (run 31099 ms, duration 3556 ms)
+  local-20261106-15 opt2      20853 ms  (run 29677 ms, duration 3740 ms)
+  local-20261106-16 final     21112 ms  (run 31172 ms, duration 3880 ms)
+  local-20261106-17 opt2      21227 ms  (run 30656 ms, duration 3680 ms)
+  local-20261106-18 final     21619 ms  (run 29752 ms, duration 3420 ms)
+  local-20261106-19 opt2      20389 ms  (run 29159 ms, duration 3608 ms)
+  local-20261106-20 final     20307 ms  (run 27946 ms, duration 3377 ms)
+  local-20261106-21 opt2      19636 ms  (run 28210 ms, duration 3498 ms)
+  local-20261106-22 final     20310 ms  (run 29074 ms, duration 3501 ms)
+  local-20261106-23 opt2      19391 ms  (run 27249 ms, duration 3349 ms)
+  local-20261106-24 final     19446 ms  (run 27216 ms, duration 3372 ms)
+  local-20261106-25 opt2      20027 ms  (run 26507 ms, duration 3269 ms)
+  local-20261106-26 final     19065 ms  (run 27107 ms, duration 3375 ms)
+  median of the listed runs 20389 ms [19065-24219]

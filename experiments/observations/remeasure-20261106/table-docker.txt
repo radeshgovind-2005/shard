@@ -1,0 +1,72 @@
+# python3 -I experiments/observations/remeasure-20261106/scripts/table.py experiments/runs docker docker-20261106-23,docker-20261106-25,docker-20261106-27,docker-20261106-29,docker-20261106-31,docker-20261106-33,docker-20261106-35 docker-20261106-24,docker-20261106-26,docker-20261106-28,docker-20261106-30,docker-20261106-32,docker-20261106-34,docker-20261106-36 experiments/analysis/remeasure-20261106-wall.csv docker-20261106-12,docker-20261106-14,docker-20261106-16,docker-20261106-18,docker-20261106-20,docker-20261106-22,docker-20261106-23,docker-20261106-25,docker-20261106-27,docker-20261106-29,docker-20261106-31,docker-20261106-33,docker-20261106-35,docker-20261106-24,docker-20261106-26,docker-20261106-28,docker-20261106-30,docker-20261106-32,docker-20261106-34,docker-20261106-36 docker-20261106-12,docker-20261106-14,docker-20261106-16,docker-20261106-18,docker-20261106-20,docker-20261106-22
+
+## baseline (--skip-opts opt2) (n = 7: 23, 25, 27, 29, 31, 33, 35), median [min-max] (spread)
+  m1     wall s 5.86 [5.43-7.00] (26.8%)
+  m2     wall s 4.50 [4.20-5.70] (33.3%)
+  m3     wall s 7.21 [7.05-7.95] (12.5%)
+  o1     wall s 9.18 [8.87-9.97] (12.0%)
+  o3     wall s 7.67 [6.40-8.15] (22.8%)
+  total  wall s 34.77 [32.08-37.27] (14.9%)
+  shuffle R / W MiB (all runs) [683.3] / [650.0]
+    m1: R [0.0] W [0.0] MiB, disk spill [0.0] MiB
+    m2: R [0.6] W [0.6] MiB, disk spill [0.0] MiB
+    m3: R [1.0] W [1.0] MiB, disk spill [0.0] MiB
+    o1: R [498.8] W [498.8] MiB, disk spill [431.7, 431.8, 431.9, 432.1] MiB
+    o3: R [182.9] W [149.6] MiB, disk spill [0.0] MiB
+  tasks [96], stages [24]
+  disk spill MiB [431.7, 431.8, 431.9, 432.1], mem spill MiB [2392.0]
+  GC % 5.4 [5.0-5.7] (14.3%); CPU/run 0.88 [0.88-0.89] (1.2%); executor run s 103.6 [99.4-109.6] (9.8%)
+  max task skew (max/median) per op, max over runs: m1=1.84 m2=1.38 m3=1.25 o1=1.61 o3=6.91; overall 6.91
+  same, stages with median task >= 100 ms only: m1=1.84 m2=1.38 m3=1.25 o1=1.61 o3=1.58; overall 1.84 (max ratio among the shorter stages: 6.91)
+
+## final (OPT-2 on) (n = 7: 24, 26, 28, 30, 32, 34, 36), median [min-max] (spread)
+  m1     wall s 5.86 [5.55-6.79] (21.2%)
+  m2     wall s 4.33 [4.12-4.87] (17.3%)
+  m3     wall s 7.56 [7.04-8.56] (20.1%)
+  o1     wall s 5.43 [5.26-6.37] (20.4%)
+  o3     wall s 8.17 [6.90-8.93] (24.8%)
+  total  wall s 31.74 [29.66-33.27] (11.4%)
+  shuffle R / W MiB (all runs) [187.2] / [153.9]
+    m1: R [0.0] W [0.0] MiB, disk spill [0.0] MiB
+    m2: R [0.6] W [0.6] MiB, disk spill [0.0] MiB
+    m3: R [1.0] W [1.0] MiB, disk spill [0.0] MiB
+    o1: R [2.7] W [2.7] MiB, disk spill [0.0] MiB
+    o3: R [182.9] W [149.6] MiB, disk spill [0.0] MiB
+  tasks [98, 99], stages [25]
+  disk spill MiB [0.0], mem spill MiB [0.0]
+  GC % 6.5 [6.1-6.9] (12.4%); CPU/run 0.86 [0.86-0.87] (1.8%); executor run s 90.3 [85.9-102.1] (17.9%)
+  max task skew (max/median) per op, max over runs: m1=2.06 m2=1.32 m3=1.26 o1=1.64 o3=4.80; overall 4.80
+  same, stages with median task >= 100 ms only: m1=2.06 m2=1.32 m3=1.26 o1=1.64 o3=1.45; overall 2.06 (max ratio among the shorter stages: 4.80)
+
+## paired differences (final minus the baseline run just before it), total s
+  -4.81, -2.06, -5.76, -0.41, -3.03, -1.25, -2.31; all negative: True; median -2.31
+
+## delta of medians: total -3.03 s (-8.7 %)
+  m1: 5.86 -> 5.86  +0.00 s (+0.0 %)
+  m2: 4.50 -> 4.33  -0.17 s (-3.8 %)
+  m3: 7.21 -> 7.56  +0.35 s (+4.9 %)
+  o1: 9.18 -> 5.43  -3.75 s (-40.8 %)
+  o3: 7.67 -> 8.17  +0.50 s (+6.5 %)
+
+## machine-state indicator: M1 scan stage (stage_id 1) executor_cpu_time_ms, per run (reference sessions: local-20261105-02 32566, local-20261105-09 21414, docker-20261105-02 22294, docker-20261105-06 14025)
+  docker-20261106-12 final     12502 ms  (run 16066 ms, duration 5012 ms)
+  docker-20261106-14 final     13370 ms  (run 16601 ms, duration 5089 ms)
+  docker-20261106-16 final     13308 ms  (run 16521 ms, duration 5179 ms)
+  docker-20261106-18 final     12900 ms  (run 16178 ms, duration 4983 ms)
+  docker-20261106-20 final     12798 ms  (run 16026 ms, duration 4818 ms)
+  docker-20261106-22 final     12653 ms  (run 15770 ms, duration 4829 ms)
+  docker-20261106-23 opt2      12533 ms  (run 15895 ms, duration 4801 ms)
+  docker-20261106-24 final     13717 ms  (run 17255 ms, duration 5378 ms)
+  docker-20261106-25 opt2      16913 ms  (run 20604 ms, duration 6130 ms)
+  docker-20261106-26 final     14472 ms  (run 18599 ms, duration 5600 ms)
+  docker-20261106-27 opt2      12997 ms  (run 16253 ms, duration 5014 ms)
+  docker-20261106-28 final     13017 ms  (run 16152 ms, duration 4973 ms)
+  docker-20261106-29 opt2      13283 ms  (run 16667 ms, duration 5123 ms)
+  docker-20261106-30 final     12846 ms  (run 15876 ms, duration 4824 ms)
+  docker-20261106-31 opt2      13350 ms  (run 16580 ms, duration 5140 ms)
+  docker-20261106-32 final     13302 ms  (run 16774 ms, duration 5078 ms)
+  docker-20261106-33 opt2      12303 ms  (run 15038 ms, duration 4623 ms)
+  docker-20261106-34 final     12785 ms  (run 15701 ms, duration 4764 ms)
+  docker-20261106-35 opt2      13084 ms  (run 16015 ms, duration 4745 ms)
+  docker-20261106-36 final     12794 ms  (run 15785 ms, duration 4855 ms)
+  median of the listed runs 13007 ms [12303-16913]
