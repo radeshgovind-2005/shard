@@ -42,13 +42,13 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
               loadTrips(files, fraction) ─► enforceSchema ─┬─► profile("m1") { cleaningStats ─► <output>/m1/ }                     (M1)
                                                            └─► removeInvalidTrips ─┬─► profile("m2") { temporalDemand(loadZones) ─► <output>/m2/ }  (M2)
                                                                                    ├─► profile("m3") { zoneStatistics(loadZones) ─► <output>/m3/ }   (M3)
-                                                                                   ├─► profile("o1") { fareAnomalyRates(loadZones) ─► <output>/o1/ }  (O1)
+                                                                                   ├─► profile("o1") { fareAnomalyRates(loadZones, bucketStatsPlanFor(args)) ─► <output>/o1/ }  (O1)
                                                                                    └─► profile("o3") { demandForecast(zoneHourGrid(months), loadZones) ─► <output>/o3/ }  (O3)
               profiler.finish()  ─► <runs-dir>/<run-id>/run.json, stages.json, plans/<op>.txt + summary table
 ```
 
 - `Main.kt`: `com.radeshgovind.MainKt`, the application and jar entry point. It owns the exit codes: 0 ok, 2 bad arguments or missing files, 1 a failure inside Spark.
-- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`, `O1`, `O3`), `Optimisation.kt` (`--skip-opts`: the OPT ids to switch off, all on by default; OPT-1 was reverted), `CommaList.kt` (the shared `a,b,c` parser), `ProfilingArgs.kt` (`--run-id`, `--runs-dir`, `--git-sha`; null when profiling is off)
+- `cli/`: `ParseArgs.kt` (flags → `PipelineArgs`, or `ArgsParse.Invalid` with a one-line reason), `MonthRange.kt` (`--years`: `YYYY`, `YYYY-YYYY`, `YYYY-MM`, 2011 onwards), `Fraction.kt` (0 < f ≤ 1), `Operation.kt` (`M1`–`M3`, `O1`, `O3`), `Optimisation.kt` (`--skip-opts`: the OPT ids to switch off, all on by default: `opt2`; OPT-1 was reverted), `CommaList.kt` (the shared `a,b,c` parser), `ProfilingArgs.kt` (`--run-id`, `--runs-dir`, `--git-sha`; null when profiling is off)
 - `ingest/`:
   - `TripFiles.kt`: the exact Parquet path for each month, with no globs, as `Found` or `Missing`
   - `LoadTrips.kt`: reads those files, adds `source_year`/`source_month` from each file's name (`_metadata.file_path`, right on the scan), then samples with a fixed seed (42) when `--fraction` < 1
@@ -72,10 +72,13 @@ runPipeline:  profilerFor(args)   (SparkProfiler with --run-id, else NoProfiler)
   - `WithRollingTripShare.kt`: window 2, zone and borough trip sums over `rangeBetween(-2, 0)` on `month_index`, and their ratio
   - `WithVolumeAnomaly.kt`: window 3, the zone's mean and σ over its previous 3 months (`rangeBetween(-3, -1)`), and `is_volume_anomaly` (null without a σ)
   - `ZoneStatsColumns.kt`: M3's column names as constants
-- `anomalies/` (O1; decisions D15–D22 in README → O1):
-  - `FareAnomalies.kt`: `fareAnomalyRates(zones)`, the O1 story: `fareAnomalies()` (trip times from `demand/withTripTimes`, fare per km, bucket stats, flag), then the borough join (`withPickupBorough`), the day type, and one `groupBy(day_type, payment_type, pickup_borough)` with `trips`, `flagged_trips`, `anomaly_rate`
+- `anomalies/` (O1; decisions D15–D22 and D31 in README → O1):
+  - `FareAnomalies.kt`: `fareAnomalyRates(zones, plan)`, the O1 story: `fareAnomalies(plan)` (trip times from `demand/withTripTimes`, fare per km, bucket stats, flag), then the borough join (`withPickupBorough`), the day type, and one `groupBy(day_type, payment_type, pickup_borough)` with `trips`, `flagged_trips`, `anomaly_rate`
   - `WithFarePerKm.kt`: `fare_per_km = fare_amount / (1.609344 × trip_distance)` (D15)
-  - `WithBucketFareStats.kt`: the baseline window, `count`/`avg`/`stddev` of `fare_per_km` over `Window.partitionBy(PULocationID, hour_of_day)` (no `orderBy`: the whole bucket). Shuffles every trip (D22).
+  - `WithBucketFareStats.kt`: `withBucketFareStats(plan)`, which picks how each trip gets its bucket's `count`/`avg`/`stddev` of `fare_per_km` (bucket = `PULocationID`, `hour_of_day`), plus the three statistics both plans share
+  - `BucketStatsPlan.kt`: `WINDOW` (D22 baseline, `--skip-opts opt2`) or `BROADCAST_AGGREGATE` (OPT-2, the default; D31); `Pipeline.kt` chooses it from `args.isApplied(Optimisation.OPT2)`
+  - `WithWindowBucketFareStats.kt`: the baseline window over `Window.partitionBy(PULocationID, hour_of_day)` (no `orderBy`: the whole bucket). Shuffles and sorts every trip (D22).
+  - `WithBroadcastBucketFareStats.kt`: OPT-2, `groupBy(PULocationID, hour_of_day)` statistics `broadcast()` back onto the trips with a null-safe join. No trip-sized shuffle, but a second trip scan while nothing is cached.
   - `WithFareAnomalyFlag.kt`: `is_fare_anomaly` = `fare_per_km > mean + 3σ`, null without a σ (D17, D18; Samuelson: n ≤ 10 never flags)
   - `WithDayType.kt`: `weekend` for `dayofweek` ∈ {1, 7}, else `weekday` (D19)
   - `AnomalyColumns.kt`: O1's column names as constants

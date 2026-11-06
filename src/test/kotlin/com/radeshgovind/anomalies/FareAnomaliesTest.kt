@@ -23,32 +23,53 @@ import kotlin.test.assertTrue
 
 class FareAnomaliesTest {
     @Test
-    fun `fareAnomalyRates has the O1 schema`() {
-        val rates = fixture(TRIPS).fareAnomalyRates(zones())
-        assertEquals(EXPECTED_SCHEMA, rates.schema().fields().map { it.name() to it.dataType() })
+    fun `fareAnomalyRates has the O1 schema`() = forEachPlan { plan ->
+        val rates = fixture(TRIPS).fareAnomalyRates(zones(), plan)
+        assertEquals(EXPECTED_SCHEMA, rates.schema().fields().map { it.name() to it.dataType() }, "$plan")
+    }
+
+    // OPT-2: the window and the broadcast aggregate give every trip the same columns, in the same order, and the
+    // same values (whole rows compared, doubles included).
+    @Test
+    fun `both bucket-stats plans give the same flagged trips`() {
+        val window = fixture(TRIPS).fareAnomalies(BucketStatsPlan.WINDOW)
+        val broadcast = fixture(TRIPS).fareAnomalies(BucketStatsPlan.BROADCAST_AGGREGATE)
+        assertEquals(window.schema(), broadcast.schema())
+        assertEquals(0L, window.exceptAll(broadcast).count())
+        assertEquals(0L, broadcast.exceptAll(window).count())
+    }
+
+    // A window puts null keys in one partition. The broadcast join is null-safe, so it does the same, where a plain
+    // equi-join would drop the trips. (M1 removes null zones and pickups, so the pipeline never sees one.)
+    @Test
+    fun `trips with a null zone share one bucket in both plans`() = forEachPlan { plan ->
+        val trips = fixture(NULL_ZONE_TRIPS).fareAnomalies(plan).collectAsList().map(::flaggedTrip)
+        assertEquals(NULL_ZONE_TRIPS.size, trips.size, "$plan")
+        assertEquals(listOf(2L, 2L), trips.filter { it.zone == null }.map(FlaggedTrip::bucketTrips), "$plan")
+        assertEquals(1L, trips.single { it.zone == 100 }.bucketTrips, "$plan")
     }
 
     // D15–D17: bucket (100, 10h) holds ten fares of 10 and one of 100, all 1 mile. By hand, in $ per mile:
     // mean = 200/11, sample σ = √89100 / 11 (deviations −90/11 ×10 and 900/11). Per km, both divide by 1.609344.
     // The 100 is 3.015 σ above the mean (10/√11), so it is flagged; the tens are below the mean.
     @Test
-    fun `mean, sample stddev and flag per zone-hour bucket`() {
-        val bucket = flaggedTrips().filter { it.zone == 100 && it.hour == 10 }
-        assertEquals(List(11) { 11L }, bucket.map(FlaggedTrip::bucketTrips))
+    fun `mean, sample stddev and flag per zone-hour bucket`() = forEachPlan { plan ->
+        val bucket = flaggedTrips(plan).filter { it.zone == 100 && it.hour == 10 }
+        assertEquals(List(11) { 11L }, bucket.map(FlaggedTrip::bucketTrips), "$plan")
         bucket.forEach {
-            assertEquals(200.0 / 11 / KM_PER_MILE, it.mean, TOLERANCE)
-            assertEquals(sqrt(89_100.0) / 11 / KM_PER_MILE, it.stddev!!, TOLERANCE)
-            assertEquals(it.fare >= 100.0, it.isAnomaly)
+            assertEquals(200.0 / 11 / KM_PER_MILE, it.mean!!, TOLERANCE, "$plan")
+            assertEquals(sqrt(89_100.0) / 11 / KM_PER_MILE, it.stddev!!, TOLERANCE, "$plan")
+            assertEquals(it.fare >= 100.0, it.isAnomaly, "$plan")
         }
     }
 
     // D18, Samuelson: with n trips and the sample σ, no trip is more than (n − 1)/√n σ from the mean. Bucket
     // (100, 11h) has nine fares of 10 and one of 1,000,000: n = 10, so even that fare is only 2.846 σ out.
     @Test
-    fun `a bucket of 10 trips can never flag, however extreme the fare`() {
-        val bucket = flaggedTrips().filter { it.zone == 100 && it.hour == 11 }
-        assertEquals(10, bucket.size)
-        assertTrue(bucket.all { it.isAnomaly == false })
+    fun `a bucket of 10 trips can never flag, however extreme the fare`() = forEachPlan { plan ->
+        val bucket = flaggedTrips(plan).filter { it.zone == 100 && it.hour == 11 }
+        assertEquals(10, bucket.size, "$plan")
+        assertTrue(bucket.all { it.isAnomaly == false }, "$plan")
     }
 
     @Test
@@ -60,12 +81,12 @@ class FareAnomaliesTest {
     // D18: one trip has no sample σ, so its flag is null (no flag), not false. Zone 132 at 10h is its own bucket:
     // it shares the hour with zone 100, but not the zone.
     @Test
-    fun `a single-trip bucket has a null stddev and a null flag`() {
-        val single = flaggedTrips().single { it.zone == 132 }
-        assertEquals(1L, single.bucketTrips)
-        assertEquals(100.0 / KM_PER_MILE, single.mean, TOLERANCE)
-        assertNull(single.stddev)
-        assertNull(single.isAnomaly)
+    fun `a single-trip bucket has a null stddev and a null flag`() = forEachPlan { plan ->
+        val single = flaggedTrips(plan).single { it.zone == 132 }
+        assertEquals(1L, single.bucketTrips, "$plan")
+        assertEquals(100.0 / KM_PER_MILE, single.mean!!, TOLERANCE, "$plan")
+        assertNull(single.stddev, "$plan")
+        assertNull(single.isAnomaly, "$plan")
     }
 
     // D19: Saturday and Sunday by the pickup's wall-clock date, midnight to midnight.
@@ -79,40 +100,44 @@ class FareAnomaliesTest {
     // D20: the outlier of bucket (100, 10h) is a Saturday cash trip, so it is the only flagged row. The Queens trip
     // has a null payment_type, which stays its own group.
     @Test
-    fun `rate table breaks the flags down by day type, payment type and borough`() {
+    fun `rate table breaks the flags down by day type, payment type and borough`() = forEachPlan { plan ->
         val expected = mapOf(
             RateKey(WEEKDAY, 1, "Manhattan") to Rate(trips = 20, flagged = 0, rate = 0.0),
             RateKey(WEEKEND, 2, "Manhattan") to Rate(trips = 1, flagged = 1, rate = 1.0),
             RateKey(WEEKEND, null, "Queens") to Rate(trips = 1, flagged = 0, rate = 0.0),
         )
-        assertEquals(expected, rates())
+        assertEquals(expected, rates(plan), "$plan")
     }
 
     @Test
-    fun `rate table counts every input trip once and never more flags than trips`() {
-        val rates = rates().values
-        assertEquals(TRIPS.size.toLong(), rates.sumOf(Rate::trips))
-        assertTrue(rates.all { it.flagged <= it.trips })
+    fun `rate table counts every input trip once and never more flags than trips`() = forEachPlan { plan ->
+        val rates = rates(plan).values
+        assertEquals(TRIPS.size.toLong(), rates.sumOf(Rate::trips), "$plan")
+        assertTrue(rates.all { it.flagged <= it.trips }, "$plan")
     }
+
+    private fun forEachPlan(check: (BucketStatsPlan) -> Unit) = BucketStatsPlan.entries.forEach(check)
 
     private fun samuelsonBound(n: Int): Double = (n - 1) / sqrt(n.toDouble())
 
-    private fun flaggedTrips(): List<FlaggedTrip> = fixture(TRIPS).fareAnomalies().collectAsList().map {
-        FlaggedTrip(
-            zone = it.getAs("PULocationID"),
-            hour = it.getAs("hour_of_day"),
-            fare = it.getAs("fare_amount"),
-            bucketTrips = it.getAs("bucket_trips"),
-            mean = it.getAs("bucket_mean_fare_per_km"),
-            stddev = it.getAs("bucket_stddev_fare_per_km"),
-            isAnomaly = it.getAs("is_fare_anomaly"),
-        )
-    }
+    private fun flaggedTrips(plan: BucketStatsPlan): List<FlaggedTrip> =
+        fixture(TRIPS).fareAnomalies(plan).collectAsList().map(::flaggedTrip)
 
-    private fun rates(): Map<RateKey, Rate> = fixture(TRIPS).fareAnomalyRates(zones()).collectAsList().associate {
-        RateKey(it.getAs("day_type"), it.getAs("payment_type"), it.getAs("pickup_borough")) to
-            Rate(it.getAs("trips"), it.getAs("flagged_trips"), it.getAs("anomaly_rate"))
-    }
+    private fun flaggedTrip(row: Row): FlaggedTrip = FlaggedTrip(
+        zone = row.getAs("PULocationID"),
+        hour = row.getAs("hour_of_day"),
+        fare = row.getAs("fare_amount"),
+        bucketTrips = row.getAs("bucket_trips"),
+        mean = row.getAs("bucket_mean_fare_per_km"),
+        stddev = row.getAs("bucket_stddev_fare_per_km"),
+        isAnomaly = row.getAs("is_fare_anomaly"),
+    )
+
+    private fun rates(plan: BucketStatsPlan): Map<RateKey, Rate> =
+        fixture(TRIPS).fareAnomalyRates(zones(), plan).collectAsList().associate {
+            RateKey(it.getAs("day_type"), it.getAs("payment_type"), it.getAs("pickup_borough")) to
+                Rate(it.getAs("trips"), it.getAs("flagged_trips"), it.getAs("anomaly_rate"))
+        }
 
     private fun fixture(trips: List<TestTrip>): Dataset<Row> =
         spark.createDataFrame(trips.map(TestTrip::toRow), ENFORCED_SCHEMA)
@@ -120,11 +145,11 @@ class FareAnomaliesTest {
     private fun zones(): Dataset<Row> = spark.createDataFrame(ZONES, ZONE_SCHEMA)
 
     private data class FlaggedTrip(
-        val zone: Int,
-        val hour: Int,
+        val zone: Int?,
+        val hour: Int?,
         val fare: Double,
         val bucketTrips: Long,
-        val mean: Double,
+        val mean: Double?,
         val stddev: Double?,
         val isAnomaly: Boolean?,
     )
@@ -134,7 +159,7 @@ class FareAnomaliesTest {
     private data class Rate(val trips: Long, val flagged: Long, val rate: Double)
 
     private data class TestTrip(
-        val pickupZone: Int,
+        val pickupZone: Int?,
         val pickup: LocalDateTime,
         val fare: Double = 10.0,
         val payment: Int? = 1,
@@ -189,6 +214,13 @@ class FareAnomaliesTest {
                 List(9) { TestTrip(100, wednesday(11, it)) } +
                 TestTrip(100, wednesday(11, 30), fare = 1_000_000.0) +
                 TestTrip(132, LocalDateTime.of(2025, 1, 19, 10, 0), fare = 100.0, payment = null)
+
+        // Two trips with a null zone at 10h (one bucket of 2) and one in zone 100 at 10h (a bucket of 1).
+        private val NULL_ZONE_TRIPS: List<TestTrip> = listOf(
+            TestTrip(null, wednesday(10, 0)),
+            TestTrip(null, wednesday(10, 5), fare = 20.0),
+            TestTrip(100, wednesday(10, 10)),
+        )
 
         // Friday 23:59 and Monday 00:00 are weekdays; Saturday 00:00 and Sunday 23:59 are the weekend's edges.
         private val WEEKEND_EDGES: List<TestTrip> = listOf(

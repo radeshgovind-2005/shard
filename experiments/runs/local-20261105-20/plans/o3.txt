@@ -1,0 +1,125 @@
+== command ==
+AdaptiveSparkPlan isFinalPlan=true
++- == Final Plan ==
+   ResultQueryStage 13
+   +- Execute InsertIntoHadoopFsRelationCommand file:/Users/radeshgovind/dev/nova-fct/parallel-computation/project/shard/output/o3, false, Parquet, [path=output/o3], Overwrite, [PULocationID, service_zone, pickup_date, day_of_week, hour_of_day, trip_count, lag_4w_trip_count, hist_mean_trips, hist_var_trips, demand_index, is_demand_spike]
+      +- WriteFiles
+         +- *(19) Project [PULocationID#876, service_zone#882, pickup_date#901, day_of_week#902, hour_of_day#903, trip_count#900L, lag_4w_trip_count#934L, hist_mean_trips#904, hist_var_trips#906, demand_index#982, is_demand_spike#983]
+            +- *(19) BroadcastHashJoin [PULocationID#876], [LocationID#879], Inner, BuildRight, false, false
+               :- *(19) Project [PULocationID#876, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, hist_var_trips#906, lag_4w_trip_count#934L, demand_index#982, coalesce((demand_index#982 > 2.0), false) AS is_demand_spike#983]
+               :  +- *(19) Project [PULocationID#876, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, hist_var_trips#906, lag_4w_trip_count#934L, CASE WHEN (hist_mean_trips#904 > 0.0) THEN (cast(trip_count#900L as double) / hist_mean_trips#904) END AS demand_index#982]
+               :     +- *(19) SortMergeJoin [PULocationID#876, hour_index#878], [PULocationID#936, hour_index#933], LeftOuter
+               :        :- *(17) Sort [PULocationID#876 ASC NULLS FIRST, hour_index#878 ASC NULLS FIRST], false, 0
+               :        :  +- AQEShuffleRead coalesced
+               :        :     +- ShuffleQueryStage 12
+               :        :        +- Exchange hashpartitioning(PULocationID#876, hour_index#878, 200), ENSURE_REQUIREMENTS, [plan_id=2812]
+               :        :           +- *(16) Project [PULocationID#876, hour_index#878, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, hist_var_trips#906]
+               :        :              +- Window [var_samp(_w0#924) windowspecdefinition(PULocationID#876, day_of_week#902, hour_of_day#903, specifiedwindowframe(RowFrame, unboundedpreceding$(), unboundedfollowing$())) AS hist_var_trips#906], [PULocationID#876, day_of_week#902, hour_of_day#903]
+               :        :                 +- *(15) Project [PULocationID#876, hour_index#878, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, cast(trip_count#900L as double) AS _w0#924]
+               :        :                    +- Window [avg(trip_count#900L) windowspecdefinition(PULocationID#876, day_of_week#902, hour_of_day#903, specifiedwindowframe(RowFrame, unboundedpreceding$(), unboundedfollowing$())) AS hist_mean_trips#904], [PULocationID#876, day_of_week#902, hour_of_day#903]
+               :        :                       +- *(14) Sort [PULocationID#876 ASC NULLS FIRST, day_of_week#902 ASC NULLS FIRST, hour_of_day#903 ASC NULLS FIRST], false, 0
+               :        :                          +- AQEShuffleRead coalesced
+               :        :                             +- ShuffleQueryStage 10
+               :        :                                +- Exchange hashpartitioning(PULocationID#876, day_of_week#902, hour_of_day#903, 200), ENSURE_REQUIREMENTS, [plan_id=2589]
+               :        :                                   +- *(10) Project [PULocationID#876, hour_index#878, trip_count#900L, pickup_date#901, dayofweek(pickup_date#901) AS day_of_week#902, pmod(hour_index#878, 24) AS hour_of_day#903]
+               :        :                                      +- *(10) Project [PULocationID#876, hour_index#878, coalesce(trip_count#884L, 0) AS trip_count#900L, date_from_unix_date(cast(FLOOR((cast(hour_index#878 as double) / 24.0)) as int)) AS pickup_date#901]
+               :        :                                         +- *(10) SortMergeJoin [PULocationID#876, hour_index#878], [PULocationID#7, hour_index#883], LeftOuter
+               :        :                                            :- *(8) Sort [PULocationID#876 ASC NULLS FIRST, hour_index#878 ASC NULLS FIRST], false, 0
+               :        :                                            :  +- AQEShuffleRead coalesced
+               :        :                                            :     +- ShuffleQueryStage 7
+               :        :                                            :        +- Exchange hashpartitioning(PULocationID#876, hour_index#878, 200), ENSURE_REQUIREMENTS, [plan_id=2120]
+               :        :                                            :           +- *(6) BroadcastNestedLoopJoin BuildLeft, Cross
+               :        :                                            :              :- BroadcastQueryStage 0
+               :        :                                            :              :  +- BroadcastExchange IdentityBroadcastMode, [plan_id=1829]
+               :        :                                            :              :     +- *(1) Project [cast(id#875L as int) AS PULocationID#876]
+               :        :                                            :              :        +- *(1) Range (1, 264, step=1, splits=10)
+               :        :                                            :              +- *(6) Project [cast(id#877L as int) AS hour_index#878]
+               :        :                                            :                 +- *(6) Range (482136, 490896, step=1, splits=10)
+               :        :                                            +- *(9) Sort [PULocationID#7 ASC NULLS FIRST, hour_index#883 ASC NULLS FIRST], false, 0
+               :        :                                               +- *(9) HashAggregate(keys=[PULocationID#7, hour_index#883], functions=[count(1)], output=[PULocationID#7, hour_index#883, trip_count#884L])
+               :        :                                                  +- AQEShuffleRead coalesced
+               :        :                                                     +- ShuffleQueryStage 1
+               :        :                                                        +- Exchange hashpartitioning(PULocationID#7, hour_index#883, 200), ENSURE_REQUIREMENTS, [plan_id=1849]
+               :        :                                                           +- *(2) HashAggregate(keys=[PULocationID#7, hour_index#883], functions=[partial_count(1)], output=[PULocationID#7, hour_index#883, count#986L])
+               :        :                                                              +- *(2) Project [PULocationID#7, ((unix_date(cast(tpep_pickup_datetime#1 as date)) * 24) + hour(tpep_pickup_datetime#1, Some(Europe/Lisbon))) AS hour_index#883]
+               :        :                                                                 +- *(2) Filter (((((((NOT coalesce((isnull(fare_amount#10) OR (fare_amount#10 <= 0.0)), false) AND NOT coalesce((isnull(trip_distance#4) OR (trip_distance#4 <= 0.0)), false)) AND NOT coalesce(((cast(passenger_count#3L as int) = 0) OR (cast(passenger_count#3L as int) > 6)), false)) AND NOT coalesce(((isnull(tpep_pickup_datetime#1) OR isnull(tpep_dropoff_datetime#2)) OR (tpep_dropoff_datetime#2 <= tpep_pickup_datetime#1)), false)) AND NOT coalesce((isnull(PULocationID#7) OR ((PULocationID#7 < 1) OR (PULocationID#7 > 263))), false)) AND NOT coalesce((isnull(DOLocationID#8) OR ((DOLocationID#8 < 1) OR (DOLocationID#8 > 263))), false)) AND isnotnull(PULocationID#7)) AND isnotnull(((unix_date(cast(tpep_pickup_datetime#1 as date)) * 24) + hour(tpep_pickup_datetime#1, Some(Europe/Lisbon)))))
+               :        :                                                                    +- *(2) Project [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, passenger_count#3L, trip_distance#4, PULocationID#7, DOLocationID#8, fare_amount#10, knownnotnull(named_struct(file_path, file_path#987, file_name, file_name#988, file_size, file_size#989L, file_block_start, file_block_start#990L, file_block_length, file_block_length#991L, file_modification_time, file_modification_time#992, row_index, row_index#993L)) AS _metadata#22]
+               :        :                                                                       +- *(2) ColumnarToRow
+               :        :                                                                          +- FileScan parquet [tpep_pickup_datetime#1,tpep_dropoff_datetime#2,passenger_count#3L,trip_distance#4,PULocationID#7,DOLocationID#8,fare_amount#10,_tmp_metadata_row_index#993L,file_path#987,file_name#988,file_size#989L,file_block_start#990L,file_block_length#991L,file_modification_time#992] Batched: true, DataFilters: [NOT coalesce((isnull(fare_amount#10) OR (fare_amount#10 <= 0.0)), false), NOT coalesce((isnull(t..., Format: Parquet, Location: InMemoryFileIndex(12 paths)[file:/Users/radeshgovind/dev/nova-fct/parallel-computation/project/sh..., PartitionFilters: [], PushedFilters: [IsNotNull(PULocationID)], ReadSchema: struct<tpep_pickup_datetime:timestamp_ntz,tpep_dropoff_datetime:timestamp_ntz,passenger_count:big...
+               :        +- *(18) Sort [PULocationID#936 ASC NULLS FIRST, hour_index#933 ASC NULLS FIRST], false, 0
+               :           +- AQEShuffleRead coalesced
+               :              +- ShuffleQueryStage 11
+               :                 +- Exchange hashpartitioning(PULocationID#936, hour_index#933, 200), ENSURE_REQUIREMENTS, [plan_id=2641]
+               :                    +- *(13) Project [PULocationID#936, (hour_index#938 + 672) AS hour_index#933, coalesce(trip_count#976L, 0) AS lag_4w_trip_count#934L]
+               :                       +- *(13) SortMergeJoin [PULocationID#936, hour_index#938], [PULocationID#946, hour_index#975], LeftOuter
+               :                          :- *(11) Sort [PULocationID#936 ASC NULLS FIRST, hour_index#938 ASC NULLS FIRST], false, 0
+               :                          :  +- AQEShuffleRead coalesced
+               :                          :     +- ShuffleQueryStage 9
+               :                          :        +- ReusedExchange [PULocationID#936, hour_index#938], Exchange hashpartitioning(PULocationID#876, hour_index#878, 200), ENSURE_REQUIREMENTS, [plan_id=2120]
+               :                          +- *(12) Sort [PULocationID#946 ASC NULLS FIRST, hour_index#975 ASC NULLS FIRST], false, 0
+               :                             +- *(12) HashAggregate(keys=[PULocationID#946, hour_index#975], functions=[count(1)], output=[PULocationID#946, hour_index#975, trip_count#976L])
+               :                                +- AQEShuffleRead coalesced
+               :                                   +- ShuffleQueryStage 5
+               :                                      +- ReusedExchange [PULocationID#946, hour_index#975, count#986L], Exchange hashpartitioning(PULocationID#7, hour_index#883, 200), ENSURE_REQUIREMENTS, [plan_id=1849]
+               +- BroadcastQueryStage 6
+                  +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)),false), [plan_id=1966]
+                     +- *(5) Filter isnotnull(LocationID#879)
+                        +- FileScan csv [LocationID#879,service_zone#882] Batched: false, DataFilters: [isnotnull(LocationID#879)], Format: CSV, Location: InMemoryFileIndex(1 paths)[file:/Users/radeshgovind/dev/nova-fct/parallel-computation/project/sha..., PartitionFilters: [], PushedFilters: [IsNotNull(LocationID)], ReadSchema: struct<LocationID:int,service_zone:string>
++- == Initial Plan ==
+   Execute InsertIntoHadoopFsRelationCommand file:/Users/radeshgovind/dev/nova-fct/parallel-computation/project/shard/output/o3, false, Parquet, [path=output/o3], Overwrite, [PULocationID, service_zone, pickup_date, day_of_week, hour_of_day, trip_count, lag_4w_trip_count, hist_mean_trips, hist_var_trips, demand_index, is_demand_spike]
+   +- WriteFiles
+      +- Project [PULocationID#876, service_zone#882, pickup_date#901, day_of_week#902, hour_of_day#903, trip_count#900L, lag_4w_trip_count#934L, hist_mean_trips#904, hist_var_trips#906, demand_index#982, is_demand_spike#983]
+         +- BroadcastHashJoin [PULocationID#876], [LocationID#879], Inner, BuildRight, false, false
+            :- Project [PULocationID#876, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, hist_var_trips#906, lag_4w_trip_count#934L, demand_index#982, coalesce((demand_index#982 > 2.0), false) AS is_demand_spike#983]
+            :  +- Project [PULocationID#876, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, hist_var_trips#906, lag_4w_trip_count#934L, CASE WHEN (hist_mean_trips#904 > 0.0) THEN (cast(trip_count#900L as double) / hist_mean_trips#904) END AS demand_index#982]
+            :     +- SortMergeJoin [PULocationID#876, hour_index#878], [PULocationID#936, hour_index#933], LeftOuter
+            :        :- Sort [PULocationID#876 ASC NULLS FIRST, hour_index#878 ASC NULLS FIRST], false, 0
+            :        :  +- Exchange hashpartitioning(PULocationID#876, hour_index#878, 200), ENSURE_REQUIREMENTS, [plan_id=1768]
+            :        :     +- Project [PULocationID#876, hour_index#878, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, hist_var_trips#906]
+            :        :        +- Window [var_samp(_w0#924) windowspecdefinition(PULocationID#876, day_of_week#902, hour_of_day#903, specifiedwindowframe(RowFrame, unboundedpreceding$(), unboundedfollowing$())) AS hist_var_trips#906], [PULocationID#876, day_of_week#902, hour_of_day#903]
+            :        :           +- Project [PULocationID#876, hour_index#878, trip_count#900L, pickup_date#901, day_of_week#902, hour_of_day#903, hist_mean_trips#904, cast(trip_count#900L as double) AS _w0#924]
+            :        :              +- Window [avg(trip_count#900L) windowspecdefinition(PULocationID#876, day_of_week#902, hour_of_day#903, specifiedwindowframe(RowFrame, unboundedpreceding$(), unboundedfollowing$())) AS hist_mean_trips#904], [PULocationID#876, day_of_week#902, hour_of_day#903]
+            :        :                 +- Sort [PULocationID#876 ASC NULLS FIRST, day_of_week#902 ASC NULLS FIRST, hour_of_day#903 ASC NULLS FIRST], false, 0
+            :        :                    +- Exchange hashpartitioning(PULocationID#876, day_of_week#902, hour_of_day#903, 200), ENSURE_REQUIREMENTS, [plan_id=1749]
+            :        :                       +- Project [PULocationID#876, hour_index#878, trip_count#900L, pickup_date#901, dayofweek(pickup_date#901) AS day_of_week#902, pmod(hour_index#878, 24) AS hour_of_day#903]
+            :        :                          +- Project [PULocationID#876, hour_index#878, coalesce(trip_count#884L, 0) AS trip_count#900L, date_from_unix_date(cast(FLOOR((cast(hour_index#878 as double) / 24.0)) as int)) AS pickup_date#901]
+            :        :                             +- SortMergeJoin [PULocationID#876, hour_index#878], [PULocationID#7, hour_index#883], LeftOuter
+            :        :                                :- Sort [PULocationID#876 ASC NULLS FIRST, hour_index#878 ASC NULLS FIRST], false, 0
+            :        :                                :  +- Exchange hashpartitioning(PULocationID#876, hour_index#878, 200), ENSURE_REQUIREMENTS, [plan_id=1742]
+            :        :                                :     +- BroadcastNestedLoopJoin BuildLeft, Cross
+            :        :                                :        :- BroadcastExchange IdentityBroadcastMode, [plan_id=1736]
+            :        :                                :        :  +- Project [cast(id#875L as int) AS PULocationID#876]
+            :        :                                :        :     +- Range (1, 264, step=1, splits=10)
+            :        :                                :        +- Project [cast(id#877L as int) AS hour_index#878]
+            :        :                                :           +- Range (482136, 490896, step=1, splits=10)
+            :        :                                +- Sort [PULocationID#7 ASC NULLS FIRST, hour_index#883 ASC NULLS FIRST], false, 0
+            :        :                                   +- HashAggregate(keys=[PULocationID#7, hour_index#883], functions=[count(1)], output=[PULocationID#7, hour_index#883, trip_count#884L])
+            :        :                                      +- Exchange hashpartitioning(PULocationID#7, hour_index#883, 200), ENSURE_REQUIREMENTS, [plan_id=1738]
+            :        :                                         +- HashAggregate(keys=[PULocationID#7, hour_index#883], functions=[partial_count(1)], output=[PULocationID#7, hour_index#883, count#986L])
+            :        :                                            +- Project [PULocationID#7, ((unix_date(cast(tpep_pickup_datetime#1 as date)) * 24) + hour(tpep_pickup_datetime#1, Some(Europe/Lisbon))) AS hour_index#883]
+            :        :                                               +- Filter (((((((NOT coalesce((isnull(fare_amount#10) OR (fare_amount#10 <= 0.0)), false) AND NOT coalesce((isnull(trip_distance#4) OR (trip_distance#4 <= 0.0)), false)) AND NOT coalesce(((cast(passenger_count#3L as int) = 0) OR (cast(passenger_count#3L as int) > 6)), false)) AND NOT coalesce(((isnull(tpep_pickup_datetime#1) OR isnull(tpep_dropoff_datetime#2)) OR (tpep_dropoff_datetime#2 <= tpep_pickup_datetime#1)), false)) AND NOT coalesce((isnull(PULocationID#7) OR ((PULocationID#7 < 1) OR (PULocationID#7 > 263))), false)) AND NOT coalesce((isnull(DOLocationID#8) OR ((DOLocationID#8 < 1) OR (DOLocationID#8 > 263))), false)) AND isnotnull(PULocationID#7)) AND isnotnull(((unix_date(cast(tpep_pickup_datetime#1 as date)) * 24) + hour(tpep_pickup_datetime#1, Some(Europe/Lisbon)))))
+            :        :                                                  +- Project [tpep_pickup_datetime#1, tpep_dropoff_datetime#2, passenger_count#3L, trip_distance#4, PULocationID#7, DOLocationID#8, fare_amount#10, knownnotnull(named_struct(file_path, file_path#987, file_name, file_name#988, file_size, file_size#989L, file_block_start, file_block_start#990L, file_block_length, file_block_length#991L, file_modification_time, file_modification_time#992, row_index, row_index#993L)) AS _metadata#22]
+            :        :                                                     +- FileScan parquet [tpep_pickup_datetime#1,tpep_dropoff_datetime#2,passenger_count#3L,trip_distance#4,PULocationID#7,DOLocationID#8,fare_amount#10,_tmp_metadata_row_index#993L,file_path#987,file_name#988,file_size#989L,file_block_start#990L,file_block_length#991L,file_modification_time#992] Batched: true, DataFilters: [NOT coalesce((isnull(fare_amount#10) OR (fare_amount#10 <= 0.0)), false), NOT coalesce((isnull(t..., Format: Parquet, Location: InMemoryFileIndex(12 paths)[file:/Users/radeshgovind/dev/nova-fct/parallel-computation/project/sh..., PartitionFilters: [], PushedFilters: [IsNotNull(PULocationID)], ReadSchema: struct<tpep_pickup_datetime:timestamp_ntz,tpep_dropoff_datetime:timestamp_ntz,passenger_count:big...
+            :        +- Sort [PULocationID#936 ASC NULLS FIRST, hour_index#933 ASC NULLS FIRST], false, 0
+            :           +- Exchange hashpartitioning(PULocationID#936, hour_index#933, 200), ENSURE_REQUIREMENTS, [plan_id=1769]
+            :              +- Project [PULocationID#936, (hour_index#938 + 672) AS hour_index#933, coalesce(trip_count#976L, 0) AS lag_4w_trip_count#934L]
+            :                 +- SortMergeJoin [PULocationID#936, hour_index#938], [PULocationID#946, hour_index#975], LeftOuter
+            :                    :- Sort [PULocationID#936 ASC NULLS FIRST, hour_index#938 ASC NULLS FIRST], false, 0
+            :                    :  +- Exchange hashpartitioning(PULocationID#936, hour_index#938, 200), ENSURE_REQUIREMENTS, [plan_id=1761]
+            :                    :     +- BroadcastNestedLoopJoin BuildLeft, Cross
+            :                    :        :- BroadcastExchange IdentityBroadcastMode, [plan_id=1755]
+            :                    :        :  +- Project [cast(id#935L as int) AS PULocationID#936]
+            :                    :        :     +- Range (1, 264, step=1, splits=10)
+            :                    :        +- Project [cast(id#937L as int) AS hour_index#938]
+            :                    :           +- Range (482136, 490896, step=1, splits=10)
+            :                    +- Sort [PULocationID#946 ASC NULLS FIRST, hour_index#975 ASC NULLS FIRST], false, 0
+            :                       +- HashAggregate(keys=[PULocationID#946, hour_index#975], functions=[count(1)], output=[PULocationID#946, hour_index#975, trip_count#976L])
+            :                          +- Exchange hashpartitioning(PULocationID#946, hour_index#975, 200), ENSURE_REQUIREMENTS, [plan_id=1757]
+            :                             +- HashAggregate(keys=[PULocationID#946, hour_index#975], functions=[partial_count(1)], output=[PULocationID#946, hour_index#975, count#986L])
+            :                                +- Project [PULocationID#946, ((unix_date(cast(tpep_pickup_datetime#940 as date)) * 24) + hour(tpep_pickup_datetime#940, Some(Europe/Lisbon))) AS hour_index#975]
+            :                                   +- Filter (((((((NOT coalesce((isnull(fare_amount#949) OR (fare_amount#949 <= 0.0)), false) AND NOT coalesce((isnull(trip_distance#943) OR (trip_distance#943 <= 0.0)), false)) AND NOT coalesce(((cast(passenger_count#942L as int) = 0) OR (cast(passenger_count#942L as int) > 6)), false)) AND NOT coalesce(((isnull(tpep_pickup_datetime#940) OR isnull(tpep_dropoff_datetime#941)) OR (tpep_dropoff_datetime#941 <= tpep_pickup_datetime#940)), false)) AND NOT coalesce((isnull(PULocationID#946) OR ((PULocationID#946 < 1) OR (PULocationID#946 > 263))), false)) AND NOT coalesce((isnull(DOLocationID#947) OR ((DOLocationID#947 < 1) OR (DOLocationID#947 > 263))), false)) AND isnotnull(PULocationID#946)) AND isnotnull(((unix_date(cast(tpep_pickup_datetime#940 as date)) * 24) + hour(tpep_pickup_datetime#940, Some(Europe/Lisbon)))))
+            :                                      +- Project [tpep_pickup_datetime#940, tpep_dropoff_datetime#941, passenger_count#942L, trip_distance#943, PULocationID#946, DOLocationID#947, fare_amount#949, knownnotnull(named_struct(file_path, file_path#994, file_name, file_name#995, file_size, file_size#996L, file_block_start, file_block_start#997L, file_block_length, file_block_length#998L, file_modification_time, file_modification_time#999, row_index, row_index#1000L)) AS _metadata#959]
+            :                                         +- FileScan parquet [tpep_pickup_datetime#940,tpep_dropoff_datetime#941,passenger_count#942L,trip_distance#943,PULocationID#946,DOLocationID#947,fare_amount#949,_tmp_metadata_row_index#1000L,file_path#994,file_name#995,file_size#996L,file_block_start#997L,file_block_length#998L,file_modification_time#999] Batched: true, DataFilters: [NOT coalesce((isnull(fare_amount#949) OR (fare_amount#949 <= 0.0)), false), NOT coalesce((isnull..., Format: Parquet, Location: InMemoryFileIndex(12 paths)[file:/Users/radeshgovind/dev/nova-fct/parallel-computation/project/sh..., PartitionFilters: [], PushedFilters: [IsNotNull(PULocationID)], ReadSchema: struct<tpep_pickup_datetime:timestamp_ntz,tpep_dropoff_datetime:timestamp_ntz,passenger_count:big...
+            +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)),false), [plan_id=1776]
+               +- Filter isnotnull(LocationID#879)
+                  +- FileScan csv [LocationID#879,service_zone#882] Batched: false, DataFilters: [isnotnull(LocationID#879)], Format: CSV, Location: InMemoryFileIndex(1 paths)[file:/Users/radeshgovind/dev/nova-fct/parallel-computation/project/sha..., PartitionFilters: [], PushedFilters: [IsNotNull(LocationID)], ReadSchema: struct<LocationID:int,service_zone:string>

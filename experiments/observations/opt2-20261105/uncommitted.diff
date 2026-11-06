@@ -1,0 +1,479 @@
+diff --git a/src/main/kotlin/com/radeshgovind/Pipeline.kt b/src/main/kotlin/com/radeshgovind/Pipeline.kt
+index cb33cff..8f0416b 100644
+--- a/src/main/kotlin/com/radeshgovind/Pipeline.kt
++++ b/src/main/kotlin/com/radeshgovind/Pipeline.kt
+@@ -4,10 +4,12 @@ import com.radeshgovind.anomalies.AnomalyColumns.ANOMALY_RATE
+ import com.radeshgovind.anomalies.AnomalyColumns.DAY_TYPE
+ import com.radeshgovind.anomalies.AnomalyColumns.FLAGGED_TRIPS
+ import com.radeshgovind.anomalies.AnomalyColumns.TRIPS
++import com.radeshgovind.anomalies.BucketStatsPlan
+ import com.radeshgovind.anomalies.fareAnomalyRates
+ import com.radeshgovind.clean.cleaningStats
+ import com.radeshgovind.clean.removeInvalidTrips
+ import com.radeshgovind.cli.Operation
++import com.radeshgovind.cli.Optimisation
+ import com.radeshgovind.cli.PipelineArgs
+ import com.radeshgovind.demand.DemandColumns.PICKUP_BOROUGH
+ import com.radeshgovind.demand.DemandColumns.TRIP_COUNT
+@@ -57,7 +59,8 @@ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Fo
+         writeZoneStatistics(cleaned, spark.loadZones(args.input), args.outputOf(Operation.M3), profiler)
+     }
+     if (Operation.O1 in args.operations) {
+-        writeFareAnomalyRates(cleaned, spark.loadZones(args.input), args.outputOf(Operation.O1), profiler)
++        val plan = bucketStatsPlanFor(args)
++        writeFareAnomalyRates(cleaned, spark.loadZones(args.input), plan, args.outputOf(Operation.O1), profiler)
+     }
+     if (Operation.O3 in args.operations) {
+         val grid = spark.zoneHourGrid(args.months)
+@@ -122,10 +125,22 @@ private fun printZoneTotals(spark: SparkSession, out: Path) {
+         .show(false)
+ }
+ 
++// OPT-2 (H2): O1's bucket statistics as a groupBy broadcast back onto the trips; --skip-opts opt2 keeps the window.
++private fun bucketStatsPlanFor(args: PipelineArgs): BucketStatsPlan =
++    if (args.isApplied(Optimisation.OPT2)) BucketStatsPlan.BROADCAST_AGGREGATE else BucketStatsPlan.WINDOW
++
+ // D21: only the rate table is written (at most 2 day types × 8 payment codes, null included, × 6 boroughs = 96 rows),
+ // never the flagged trips. No partitionBy: the table is tiny.
+-private fun writeFareAnomalyRates(cleaned: Dataset<Row>, zones: Dataset<Row>, out: Path, profiler: Profiler) {
+-    profiler.profile("o1") { cleaned.fareAnomalyRates(zones).write().mode(SaveMode.Overwrite).parquet(out.toString()) }
++private fun writeFareAnomalyRates(
++    cleaned: Dataset<Row>,
++    zones: Dataset<Row>,
++    plan: BucketStatsPlan,
++    out: Path,
++    profiler: Profiler,
++) {
++    profiler.profile("o1") {
++        cleaned.fareAnomalyRates(zones, plan).write().mode(SaveMode.Overwrite).parquet(out.toString())
++    }
+     printAnomalyRates(cleaned.sparkSession(), out)
+ }
+ 
+diff --git a/src/main/kotlin/com/radeshgovind/anomalies/FareAnomalies.kt b/src/main/kotlin/com/radeshgovind/anomalies/FareAnomalies.kt
+index 1cf17d8..774ba26 100644
+--- a/src/main/kotlin/com/radeshgovind/anomalies/FareAnomalies.kt
++++ b/src/main/kotlin/com/radeshgovind/anomalies/FareAnomalies.kt
+@@ -19,9 +19,9 @@ import org.apache.spark.sql.functions.`when`
+ 
+ // O1's output: weekday vs weekend fare-anomaly rates per (day_type, payment_type, pickup_borough), from the cleaned
+ // trips. Decisions D15–D22 in README → O1.
+-// The flags are per trip (a window over the zone-hour bucket); only the rate table leaves this function (D21).
+-// No orderBy: it would add a sort and a shuffle for nothing.
+-fun Dataset<Row>.fareAnomalyRates(zones: Dataset<Row>): Dataset<Row> = fareAnomalies()
++// The flags are per trip (from the zone-hour bucket's statistics, computed by `plan`); only the rate table leaves this
++// function (D21). No orderBy: it would add a sort and a shuffle for nothing.
++fun Dataset<Row>.fareAnomalyRates(zones: Dataset<Row>, plan: BucketStatsPlan): Dataset<Row> = fareAnomalies(plan)
+     .withPickupBorough(zones)
+     .withDayType()
+     .groupBy(*rateGroups())
+@@ -30,9 +30,9 @@ fun Dataset<Row>.fareAnomalyRates(zones: Dataset<Row>): Dataset<Row> = fareAnoma
+ 
+ // Every cleaned trip with its fare_per_km, its bucket's stats and is_fare_anomaly (D15–D18). withTripTimes adds
+ // hour_of_day and day_of_week in NYC wall-clock time (D3, D7); its duration_min is unused and pruned by Catalyst.
+-fun Dataset<Row>.fareAnomalies(): Dataset<Row> = withTripTimes()
++fun Dataset<Row>.fareAnomalies(plan: BucketStatsPlan): Dataset<Row> = withTripTimes()
+     .withFarePerKm()
+-    .withBucketFareStats()
++    .withBucketFareStats(plan)
+     .withFareAnomalyFlag()
+ 
+ // Top-level on purpose: inside an extension on Dataset, a bare col() resolves to the receiver's Dataset.col.
+diff --git a/src/main/kotlin/com/radeshgovind/anomalies/WithBucketFareStats.kt b/src/main/kotlin/com/radeshgovind/anomalies/WithBucketFareStats.kt
+index 2f94df1..ffb65c1 100644
+--- a/src/main/kotlin/com/radeshgovind/anomalies/WithBucketFareStats.kt
++++ b/src/main/kotlin/com/radeshgovind/anomalies/WithBucketFareStats.kt
+@@ -1,16 +1,9 @@
+ package com.radeshgovind.anomalies
+ 
+-import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_MEAN_FARE_PER_KM
+-import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_STDDEV_FARE_PER_KM
+-import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_TRIPS
+ import com.radeshgovind.anomalies.AnomalyColumns.FARE_PER_KM
+-import com.radeshgovind.demand.DemandColumns.HOUR_OF_DAY
+-import com.radeshgovind.ingest.TripColumns.PU_LOCATION_ID
+ import org.apache.spark.sql.Column
+ import org.apache.spark.sql.Dataset
+ import org.apache.spark.sql.Row
+-import org.apache.spark.sql.expressions.Window
+-import org.apache.spark.sql.expressions.WindowSpec
+ import org.apache.spark.sql.functions.avg
+ import org.apache.spark.sql.functions.col
+ import org.apache.spark.sql.functions.count
+@@ -19,19 +12,19 @@ import org.apache.spark.sql.functions.stddev
+ 
+ // D16/D17: every trip gets its bucket's trip count, mean and sample σ of fare_per_km. The bucket is
+ // (PULocationID, hour_of_day) over every month of the run, the trip itself included.
+-// D22, the baseline: a plain window, so every trip is shuffled by bucket. One window spec → one Window, one Exchange.
+-fun Dataset<Row>.withBucketFareStats(): Dataset<Row> = withColumn(BUCKET_TRIPS, bucketTrips())
+-    .withColumn(BUCKET_MEAN_FARE_PER_KM, bucketMean())
+-    .withColumn(BUCKET_STDDEV_FARE_PER_KM, bucketStddev())
++fun Dataset<Row>.withBucketFareStats(plan: BucketStatsPlan): Dataset<Row> = when (plan) {
++    BucketStatsPlan.WINDOW -> withWindowBucketFareStats()
++    BucketStatsPlan.BROADCAST_AGGREGATE -> withBroadcastBucketFareStats()
++}
+ 
++// The three statistics, shared by both plans: a window applies them over the bucket, the aggregate per bucket.
+ // Top-level on purpose: inside an extension on Dataset, a bare col() resolves to the receiver's Dataset.col.
+ 
+-private fun bucketTrips(): Column = count(lit(1)).over(bucket())
++// Every trip of the bucket, whatever its fare_per_km.
++internal fun bucketTrips(): Column = count(lit(1))
+ 
+-private fun bucketMean(): Column = avg(col(FARE_PER_KM)).over(bucket())
++// avg and stddev skip null fare_per_km values.
++internal fun bucketMean(): Column = avg(col(FARE_PER_KM))
+ 
+ // stddev is stddev_samp (as D10): null for a 1-trip bucket.
+-private fun bucketStddev(): Column = stddev(col(FARE_PER_KM)).over(bucket())
+-
+-// No orderBy, so the frame is the whole bucket.
+-private fun bucket(): WindowSpec = Window.partitionBy(col(PU_LOCATION_ID), col(HOUR_OF_DAY))
++internal fun bucketStddev(): Column = stddev(col(FARE_PER_KM))
+diff --git a/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt b/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt
+index 5c97dee..eee4594 100644
+--- a/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt
++++ b/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt
+@@ -3,8 +3,11 @@ package com.radeshgovind.cli
+ // The applied optimisations (experiments/LOG.md → Optimisations). Each is on unless --skip-opts names it, so the
+ // before and after runs of an OPT use the same jar, and the default pipeline is the optimised one.
+ enum class Optimisation {
+-    // None yet. OPT-1 (H1, persist the cleaned trips) was measured and reverted, so its id is gone; the code that was
+-    // measured is at 0d5657b. Each kept or pending OPT adds an entry here.
++    // OPT-1 (H1, persist the cleaned trips) was measured and reverted, so its id is gone; the measured code is at
++    // 0d5657b. Each kept or pending OPT adds an entry here.
++
++    // H2: O1's bucket statistics by a groupBy broadcast back onto the trips, instead of a window over every trip.
++    OPT2,
+     ;
+ 
+     val id: String get() = name.lowercase()
+diff --git a/src/test/kotlin/com/radeshgovind/anomalies/FareAnomaliesTest.kt b/src/test/kotlin/com/radeshgovind/anomalies/FareAnomaliesTest.kt
+index 0def7e8..93177d4 100644
+--- a/src/test/kotlin/com/radeshgovind/anomalies/FareAnomaliesTest.kt
++++ b/src/test/kotlin/com/radeshgovind/anomalies/FareAnomaliesTest.kt
+@@ -23,32 +23,53 @@ import kotlin.test.assertTrue
+ 
+ class FareAnomaliesTest {
+     @Test
+-    fun `fareAnomalyRates has the O1 schema`() {
+-        val rates = fixture(TRIPS).fareAnomalyRates(zones())
+-        assertEquals(EXPECTED_SCHEMA, rates.schema().fields().map { it.name() to it.dataType() })
++    fun `fareAnomalyRates has the O1 schema`() = forEachPlan { plan ->
++        val rates = fixture(TRIPS).fareAnomalyRates(zones(), plan)
++        assertEquals(EXPECTED_SCHEMA, rates.schema().fields().map { it.name() to it.dataType() }, "$plan")
++    }
++
++    // OPT-2: the window and the broadcast aggregate give every trip the same columns, in the same order, and the
++    // same values (whole rows compared, doubles included).
++    @Test
++    fun `both bucket-stats plans give the same flagged trips`() {
++        val window = fixture(TRIPS).fareAnomalies(BucketStatsPlan.WINDOW)
++        val broadcast = fixture(TRIPS).fareAnomalies(BucketStatsPlan.BROADCAST_AGGREGATE)
++        assertEquals(window.schema(), broadcast.schema())
++        assertEquals(0L, window.exceptAll(broadcast).count())
++        assertEquals(0L, broadcast.exceptAll(window).count())
++    }
++
++    // A window puts null keys in one partition. The broadcast join is null-safe, so it does the same, where a plain
++    // equi-join would drop the trips. (M1 removes null zones and pickups, so the pipeline never sees one.)
++    @Test
++    fun `trips with a null zone share one bucket in both plans`() = forEachPlan { plan ->
++        val trips = fixture(NULL_ZONE_TRIPS).fareAnomalies(plan).collectAsList().map(::flaggedTrip)
++        assertEquals(NULL_ZONE_TRIPS.size, trips.size, "$plan")
++        assertEquals(listOf(2L, 2L), trips.filter { it.zone == null }.map(FlaggedTrip::bucketTrips), "$plan")
++        assertEquals(1L, trips.single { it.zone == 100 }.bucketTrips, "$plan")
+     }
+ 
+     // D15–D17: bucket (100, 10h) holds ten fares of 10 and one of 100, all 1 mile. By hand, in $ per mile:
+     // mean = 200/11, sample σ = √89100 / 11 (deviations −90/11 ×10 and 900/11). Per km, both divide by 1.609344.
+     // The 100 is 3.015 σ above the mean (10/√11), so it is flagged; the tens are below the mean.
+     @Test
+-    fun `mean, sample stddev and flag per zone-hour bucket`() {
+-        val bucket = flaggedTrips().filter { it.zone == 100 && it.hour == 10 }
+-        assertEquals(List(11) { 11L }, bucket.map(FlaggedTrip::bucketTrips))
++    fun `mean, sample stddev and flag per zone-hour bucket`() = forEachPlan { plan ->
++        val bucket = flaggedTrips(plan).filter { it.zone == 100 && it.hour == 10 }
++        assertEquals(List(11) { 11L }, bucket.map(FlaggedTrip::bucketTrips), "$plan")
+         bucket.forEach {
+-            assertEquals(200.0 / 11 / KM_PER_MILE, it.mean, TOLERANCE)
+-            assertEquals(sqrt(89_100.0) / 11 / KM_PER_MILE, it.stddev!!, TOLERANCE)
+-            assertEquals(it.fare >= 100.0, it.isAnomaly)
++            assertEquals(200.0 / 11 / KM_PER_MILE, it.mean!!, TOLERANCE, "$plan")
++            assertEquals(sqrt(89_100.0) / 11 / KM_PER_MILE, it.stddev!!, TOLERANCE, "$plan")
++            assertEquals(it.fare >= 100.0, it.isAnomaly, "$plan")
+         }
+     }
+ 
+     // D18, Samuelson: with n trips and the sample σ, no trip is more than (n − 1)/√n σ from the mean. Bucket
+     // (100, 11h) has nine fares of 10 and one of 1,000,000: n = 10, so even that fare is only 2.846 σ out.
+     @Test
+-    fun `a bucket of 10 trips can never flag, however extreme the fare`() {
+-        val bucket = flaggedTrips().filter { it.zone == 100 && it.hour == 11 }
+-        assertEquals(10, bucket.size)
+-        assertTrue(bucket.all { it.isAnomaly == false })
++    fun `a bucket of 10 trips can never flag, however extreme the fare`() = forEachPlan { plan ->
++        val bucket = flaggedTrips(plan).filter { it.zone == 100 && it.hour == 11 }
++        assertEquals(10, bucket.size, "$plan")
++        assertTrue(bucket.all { it.isAnomaly == false }, "$plan")
+     }
+ 
+     @Test
+@@ -60,12 +81,12 @@ class FareAnomaliesTest {
+     // D18: one trip has no sample σ, so its flag is null (no flag), not false. Zone 132 at 10h is its own bucket:
+     // it shares the hour with zone 100, but not the zone.
+     @Test
+-    fun `a single-trip bucket has a null stddev and a null flag`() {
+-        val single = flaggedTrips().single { it.zone == 132 }
+-        assertEquals(1L, single.bucketTrips)
+-        assertEquals(100.0 / KM_PER_MILE, single.mean, TOLERANCE)
+-        assertNull(single.stddev)
+-        assertNull(single.isAnomaly)
++    fun `a single-trip bucket has a null stddev and a null flag`() = forEachPlan { plan ->
++        val single = flaggedTrips(plan).single { it.zone == 132 }
++        assertEquals(1L, single.bucketTrips, "$plan")
++        assertEquals(100.0 / KM_PER_MILE, single.mean!!, TOLERANCE, "$plan")
++        assertNull(single.stddev, "$plan")
++        assertNull(single.isAnomaly, "$plan")
+     }
+ 
+     // D19: Saturday and Sunday by the pickup's wall-clock date, midnight to midnight.
+@@ -79,40 +100,44 @@ class FareAnomaliesTest {
+     // D20: the outlier of bucket (100, 10h) is a Saturday cash trip, so it is the only flagged row. The Queens trip
+     // has a null payment_type, which stays its own group.
+     @Test
+-    fun `rate table breaks the flags down by day type, payment type and borough`() {
++    fun `rate table breaks the flags down by day type, payment type and borough`() = forEachPlan { plan ->
+         val expected = mapOf(
+             RateKey(WEEKDAY, 1, "Manhattan") to Rate(trips = 20, flagged = 0, rate = 0.0),
+             RateKey(WEEKEND, 2, "Manhattan") to Rate(trips = 1, flagged = 1, rate = 1.0),
+             RateKey(WEEKEND, null, "Queens") to Rate(trips = 1, flagged = 0, rate = 0.0),
+         )
+-        assertEquals(expected, rates())
++        assertEquals(expected, rates(plan), "$plan")
+     }
+ 
+     @Test
+-    fun `rate table counts every input trip once and never more flags than trips`() {
+-        val rates = rates().values
+-        assertEquals(TRIPS.size.toLong(), rates.sumOf(Rate::trips))
+-        assertTrue(rates.all { it.flagged <= it.trips })
++    fun `rate table counts every input trip once and never more flags than trips`() = forEachPlan { plan ->
++        val rates = rates(plan).values
++        assertEquals(TRIPS.size.toLong(), rates.sumOf(Rate::trips), "$plan")
++        assertTrue(rates.all { it.flagged <= it.trips }, "$plan")
+     }
+ 
++    private fun forEachPlan(check: (BucketStatsPlan) -> Unit) = BucketStatsPlan.entries.forEach(check)
++
+     private fun samuelsonBound(n: Int): Double = (n - 1) / sqrt(n.toDouble())
+ 
+-    private fun flaggedTrips(): List<FlaggedTrip> = fixture(TRIPS).fareAnomalies().collectAsList().map {
+-        FlaggedTrip(
+-            zone = it.getAs("PULocationID"),
+-            hour = it.getAs("hour_of_day"),
+-            fare = it.getAs("fare_amount"),
+-            bucketTrips = it.getAs("bucket_trips"),
+-            mean = it.getAs("bucket_mean_fare_per_km"),
+-            stddev = it.getAs("bucket_stddev_fare_per_km"),
+-            isAnomaly = it.getAs("is_fare_anomaly"),
+-        )
+-    }
++    private fun flaggedTrips(plan: BucketStatsPlan): List<FlaggedTrip> =
++        fixture(TRIPS).fareAnomalies(plan).collectAsList().map(::flaggedTrip)
++
++    private fun flaggedTrip(row: Row): FlaggedTrip = FlaggedTrip(
++        zone = row.getAs("PULocationID"),
++        hour = row.getAs("hour_of_day"),
++        fare = row.getAs("fare_amount"),
++        bucketTrips = row.getAs("bucket_trips"),
++        mean = row.getAs("bucket_mean_fare_per_km"),
++        stddev = row.getAs("bucket_stddev_fare_per_km"),
++        isAnomaly = row.getAs("is_fare_anomaly"),
++    )
+ 
+-    private fun rates(): Map<RateKey, Rate> = fixture(TRIPS).fareAnomalyRates(zones()).collectAsList().associate {
+-        RateKey(it.getAs("day_type"), it.getAs("payment_type"), it.getAs("pickup_borough")) to
+-            Rate(it.getAs("trips"), it.getAs("flagged_trips"), it.getAs("anomaly_rate"))
+-    }
++    private fun rates(plan: BucketStatsPlan): Map<RateKey, Rate> =
++        fixture(TRIPS).fareAnomalyRates(zones(), plan).collectAsList().associate {
++            RateKey(it.getAs("day_type"), it.getAs("payment_type"), it.getAs("pickup_borough")) to
++                Rate(it.getAs("trips"), it.getAs("flagged_trips"), it.getAs("anomaly_rate"))
++        }
+ 
+     private fun fixture(trips: List<TestTrip>): Dataset<Row> =
+         spark.createDataFrame(trips.map(TestTrip::toRow), ENFORCED_SCHEMA)
+@@ -120,11 +145,11 @@ class FareAnomaliesTest {
+     private fun zones(): Dataset<Row> = spark.createDataFrame(ZONES, ZONE_SCHEMA)
+ 
+     private data class FlaggedTrip(
+-        val zone: Int,
+-        val hour: Int,
++        val zone: Int?,
++        val hour: Int?,
+         val fare: Double,
+         val bucketTrips: Long,
+-        val mean: Double,
++        val mean: Double?,
+         val stddev: Double?,
+         val isAnomaly: Boolean?,
+     )
+@@ -134,7 +159,7 @@ class FareAnomaliesTest {
+     private data class Rate(val trips: Long, val flagged: Long, val rate: Double)
+ 
+     private data class TestTrip(
+-        val pickupZone: Int,
++        val pickupZone: Int?,
+         val pickup: LocalDateTime,
+         val fare: Double = 10.0,
+         val payment: Int? = 1,
+@@ -190,6 +215,13 @@ class FareAnomaliesTest {
+                 TestTrip(100, wednesday(11, 30), fare = 1_000_000.0) +
+                 TestTrip(132, LocalDateTime.of(2025, 1, 19, 10, 0), fare = 100.0, payment = null)
+ 
++        // Two trips with a null zone at 10h (one bucket of 2) and one in zone 100 at 10h (a bucket of 1).
++        private val NULL_ZONE_TRIPS: List<TestTrip> = listOf(
++            TestTrip(null, wednesday(10, 0)),
++            TestTrip(null, wednesday(10, 5), fare = 20.0),
++            TestTrip(100, wednesday(10, 10)),
++        )
++
+         // Friday 23:59 and Monday 00:00 are weekdays; Saturday 00:00 and Sunday 23:59 are the weekend's edges.
+         private val WEEKEND_EDGES: List<TestTrip> = listOf(
+             TestTrip(100, LocalDateTime.of(2025, 1, 17, 23, 59), expectedDayType = WEEKDAY),
+diff --git a/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt b/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt
+index 4b9901e..3622b73 100644
+--- a/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt
++++ b/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt
+@@ -6,7 +6,9 @@ import java.time.YearMonth
+ import kotlin.test.Test
+ import kotlin.test.assertContains
+ import kotlin.test.assertEquals
++import kotlin.test.assertFalse
+ import kotlin.test.assertIs
++import kotlin.test.assertTrue
+ 
+ class ParseArgsTest {
+     @Test
+@@ -48,12 +50,24 @@ class ParseArgsTest {
+     fun `applies every optimisation by default and records none skipped`() {
+         val args = parsed()
+         assertEquals(emptySet(), args.skippedOptimisations)
++        assertTrue(args.isApplied(Optimisation.OPT2))
+         assertEquals("", args.asRecord()["skip_opts"])
+     }
+ 
++    @Test
++    fun `reads the optimisations to skip, ignoring case, and records them`() {
++        listOf("opt2", "OPT2", " Opt2 ", "opt2,OPT2").forEach {
++            val args = parsed("--skip-opts", it)
++            assertEquals(setOf(Optimisation.OPT2), args.skippedOptimisations, "for --skip-opts $it")
++            assertFalse(args.isApplied(Optimisation.OPT2), "for --skip-opts $it")
++            assertEquals("opt2", args.asRecord()["skip_opts"], "for --skip-opts $it")
++        }
++    }
++
++    // opt1 was measured and reverted (LOG → OPT-1), so its id is gone.
+     @Test
+     fun `rejects unknown optimisation ids and an empty or missing list`() {
+-        listOf("opt1", "opt9", "h1", "1", "opt9,,opt9", "opt9,").forEach {
++        listOf("opt1", "opt9", "h1", "2", "opt2,opt1", "opt2,,opt2", "opt2,").forEach {
+             assertContains(reasonWithRequired("--skip-opts", it), "--skip-opts", message = "for --skip-opts $it")
+         }
+         assertContains(reasonWithRequired("--skip-opts", ""), "needs a value")
+diff --git a/src/main/kotlin/com/radeshgovind/anomalies/BucketStatsPlan.kt b/src/main/kotlin/com/radeshgovind/anomalies/BucketStatsPlan.kt
+new file mode 100644
+index 0000000..de73fd5
+--- /dev/null
++++ b/src/main/kotlin/com/radeshgovind/anomalies/BucketStatsPlan.kt
+@@ -0,0 +1,12 @@
++package com.radeshgovind.anomalies
++
++// How O1 gives each trip its bucket's statistics (D16/D17). Both plans compute the same columns with the same
++// semantics; only the physical plan differs. Pipeline.kt picks one from --skip-opts.
++enum class BucketStatsPlan {
++    // D22, the baseline: a window over the bucket, so every trip is shuffled and sorted by bucket.
++    WINDOW,
++
++    // OPT-2 (H2): one row per bucket from a groupBy (partial aggregation, then a tiny shuffle), broadcast back onto
++    // the trips. The statistics side scans the trips once more, because nothing is cached.
++    BROADCAST_AGGREGATE,
++}
+diff --git a/src/main/kotlin/com/radeshgovind/anomalies/WithBroadcastBucketFareStats.kt b/src/main/kotlin/com/radeshgovind/anomalies/WithBroadcastBucketFareStats.kt
+new file mode 100644
+index 0000000..d4ef131
+--- /dev/null
++++ b/src/main/kotlin/com/radeshgovind/anomalies/WithBroadcastBucketFareStats.kt
+@@ -0,0 +1,42 @@
++package com.radeshgovind.anomalies
++
++import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_MEAN_FARE_PER_KM
++import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_STDDEV_FARE_PER_KM
++import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_TRIPS
++import com.radeshgovind.demand.DemandColumns.HOUR_OF_DAY
++import com.radeshgovind.ingest.TripColumns.PU_LOCATION_ID
++import org.apache.spark.sql.Column
++import org.apache.spark.sql.Dataset
++import org.apache.spark.sql.Row
++import org.apache.spark.sql.functions.broadcast
++import org.apache.spark.sql.functions.col
++
++// OPT-2 (H2): the statistics per bucket (at most 263 zones × 24 hours = 6,312 rows), broadcast back onto the trips.
++// No trip crosses a shuffle and nothing is sorted. The statistics side reads the trips a second time (no cache).
++internal fun Dataset<Row>.withBroadcastBucketFareStats(): Dataset<Row> = withStatsOf(broadcast(bucketFareStats()))
++
++// One row per bucket. The keys are renamed so that both join sides keep unique column names.
++private fun Dataset<Row>.bucketFareStats(): Dataset<Row> = groupBy(*statsKeys())
++    .agg(
++        bucketTrips().alias(BUCKET_TRIPS),
++        bucketMean().alias(BUCKET_MEAN_FARE_PER_KM),
++        bucketStddev().alias(BUCKET_STDDEV_FARE_PER_KM),
++    )
++
++// Inner is safe: every trip's bucket is in the statistics, which come from the same trips, once per bucket.
++// The stats' columns land after the trip's, in the window plan's order, and their renamed keys are dropped.
++private fun Dataset<Row>.withStatsOf(stats: Dataset<Row>): Dataset<Row> =
++    join(stats, isSameBucket()).drop(STATS_PU_LOCATION_ID, STATS_HOUR_OF_DAY)
++
++// Top-level on purpose: inside an extension on Dataset, a bare col() resolves to the receiver's Dataset.col.
++
++private fun statsKeys(): Array<Column> =
++    arrayOf(col(PU_LOCATION_ID).alias(STATS_PU_LOCATION_ID), col(HOUR_OF_DAY).alias(STATS_HOUR_OF_DAY))
++
++// Null-safe (<=>), so a null key finds its bucket as in the window, where null keys form one partition.
++// After M1 neither key can be null, so this only keeps the two plans equal for any input.
++private fun isSameBucket(): Column = col(PU_LOCATION_ID).eqNullSafe(col(STATS_PU_LOCATION_ID))
++    .and(col(HOUR_OF_DAY).eqNullSafe(col(STATS_HOUR_OF_DAY)))
++
++private const val STATS_PU_LOCATION_ID = "bucket_PULocationID"
++private const val STATS_HOUR_OF_DAY = "bucket_hour_of_day"
+diff --git a/src/main/kotlin/com/radeshgovind/anomalies/WithWindowBucketFareStats.kt b/src/main/kotlin/com/radeshgovind/anomalies/WithWindowBucketFareStats.kt
+new file mode 100644
+index 0000000..3d88df2
+--- /dev/null
++++ b/src/main/kotlin/com/radeshgovind/anomalies/WithWindowBucketFareStats.kt
+@@ -0,0 +1,23 @@
++package com.radeshgovind.anomalies
++
++import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_MEAN_FARE_PER_KM
++import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_STDDEV_FARE_PER_KM
++import com.radeshgovind.anomalies.AnomalyColumns.BUCKET_TRIPS
++import com.radeshgovind.demand.DemandColumns.HOUR_OF_DAY
++import com.radeshgovind.ingest.TripColumns.PU_LOCATION_ID
++import org.apache.spark.sql.Dataset
++import org.apache.spark.sql.Row
++import org.apache.spark.sql.expressions.Window
++import org.apache.spark.sql.expressions.WindowSpec
++import org.apache.spark.sql.functions.col
++
++// D22, the baseline (--skip-opts opt2): a plain window, so every trip is shuffled by bucket and sorted.
++// One window spec → one Window, one Exchange. A window groups null keys together, like a groupBy.
++internal fun Dataset<Row>.withWindowBucketFareStats(): Dataset<Row> =
++    withColumn(BUCKET_TRIPS, bucketTrips().over(bucket()))
++        .withColumn(BUCKET_MEAN_FARE_PER_KM, bucketMean().over(bucket()))
++        .withColumn(BUCKET_STDDEV_FARE_PER_KM, bucketStddev().over(bucket()))
++
++// Top-level on purpose: inside an extension on Dataset, a bare col() resolves to the receiver's Dataset.col.
++// No orderBy, so the frame is the whole bucket.
++private fun bucket(): WindowSpec = Window.partitionBy(col(PU_LOCATION_ID), col(HOUR_OF_DAY))

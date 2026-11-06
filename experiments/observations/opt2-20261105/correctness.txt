@@ -1,0 +1,71 @@
+# OPT-2 correctness: O1 with the bucket statistics as a window (--skip-opts opt2, the baseline code path) vs a groupBy
+# broadcast back onto the trips (the default). Same jar, HEAD 022fcfa + the uncommitted OPT-2 diff (uncommitted.diff).
+#
+# Outputs compared (written by the profiled plan runs, README):
+#   2025-01: output/opt2-off/o1 (local-20261105-83)       vs output/opt2-on/o1 (local-20261105-84)
+#   2025:    output/opt2-off-2025/o1 (local-20261105-85)  vs output/opt2-on-2025/o1 (local-20261105-86)
+#
+# Commands (from the repo root; the Docker master mounts output/ at /output, data/ at /data and build/libs at /jars;
+# local[2] inside the master container, so the cluster's workers aren't used; the spark user's HOME is /nonexistent,
+# hence HOME=/tmp; the jar was built by `make check` from the same tree):
+#   S=experiments/observations/opt2-20261105/scripts
+#   cat $S/opt2-lib.scala $S/compare-opt2.scala | docker exec -i -e HOME=/tmp shard-spark-master-1 \
+#     /opt/spark/bin/spark-shell --master 'local[2]' --jars /jars/shard-all.jar --conf spark.ui.enabled=false \
+#     --conf spark.ui.showConsoleProgress=false --driver-java-options -Duser.home=/tmp \
+#     | tr '\r' '\n' | grep -oE '(RESULT|TRIPS|FLAG|KEYS|BUCKETS|MARGIN) .*'
+#   (same with $S/control-opt2.scala | grep -oE 'CONTROL .*')
+#
+# Checks (opt2-lib.scala):
+#   RESULT rates   the written rate tables: schema, rows, exceptAll both ways (whole rows, multiset: 0 = bit for bit),
+#                  a null-safe full outer join on the non-fractional columns (counts exact) and anomaly_rate within
+#                  |a-b| <= 1e-12 * max(|a|,|b|); and the totals Σ trips, Σ flagged_trips
+#   TRIPS          trip level, 2025-01 only: the flagged trips built both ways by the jar's own functions
+#                  (loadTrips → enforceSchema → removeInvalidTrips → fareAnomalies(WINDOW | BROADCAST_AGGREGATE)),
+#                  21 columns each; exceptAll both ways on whole rows (the bucket statistics included)
+#   FLAG           exceptAll both ways on every column except the three bucket statistics: every trip (all its input
+#                  and derived columns) carries the same is_fare_anomaly; and the true / false / null counts
+#   KEYS           trips with a null PULocationID or hour_of_day (the join keys)
+#   BUCKETS        per side, every trip of a bucket carries one (count, mean, σ) (distinct rows = buckets); then the
+#                  two bucket tables joined null-safe on (PULocationID, hour_of_day, bucket_trips): counts exact,
+#                  mean and σ within 1e-12 relative, max relative difference per column
+#   MARGIN         the closest trip to its threshold mean + 3σ, relative to the threshold
+
+RESULT rates 2025-01 schema_equal=true rows_off=52 rows_on=52 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 beyond_tol=0 max_rel_diff=anomaly_rate:0.0 totals_off(trips,flagged)=[3203825,14506] totals_on=[3203825,14506]
+RESULT rates 2025 schema_equal=true rows_off=60 rows_on=60 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 beyond_tol=0 max_rel_diff=anomaly_rate:0.0 totals_off(trips,flagged)=[43599832,172907] totals_on=[43599832,172907]
+TRIPS schema_equal=true columns=tpep_pickup_datetime,tpep_dropoff_datetime,PULocationID,DOLocationID,passenger_count,RatecodeID,payment_type,trip_distance,fare_amount,tip_amount,total_amount,source_year,source_month,day_of_week,hour_of_day,duration_min,fare_per_km,bucket_trips,bucket_mean_fare_per_km,bucket_stddev_fare_per_km,is_fare_anomaly
+TRIPS rows_off=3,203,825 rows_on=3,203,825 exceptAll_whole_rows(off-on)=3140828 (on-off)=3140828
+FLAG exceptAll_without_stats(off-on)=0 (on-off)=0
+FLAG counts_off: false=3189004 null=315 true=14506 | counts_on: false=3189004 null=315 true=14506
+KEYS null PULocationID or hour_of_day: off=0 on=0
+BUCKETS distinct(bucket,stats)_off=5,535 buckets_off=5,535 distinct(bucket,stats)_on=5,535 buckets_on=5,535
+BUCKETS joined_on(PULocationID,hour_of_day,bucket_trips exact) unmatched=0 mean_or_stddev_beyond_tol=0 max_rel_diff=bucket_mean_fare_per_km:1.1170811421894906E-14,bucket_stddev_fare_per_km:4.032263403826863E-15 exceptAll(off-on)=3558 (on-off)=3558 null_stddev_buckets_off=315 on=315
+MARGIN min |fare_per_km - threshold| / threshold: off=5.593626200808431E-5 on=5.593626200808431E-5
+
+# Verdict:
+# - The rate tables, what O1 writes, are identical bit for bit on 2025-01 (52 rows) and 2025 (60 rows): exceptAll
+#   empty both ways, max relative difference 0.0. Totals: 2025-01 3,203,825 trips / 14,506 flags (= LOG → O1),
+#   2025 43,599,832 trips / 172,907 flags (= the verified 2025 result). The tables printed by runs 83/84 and 85/86
+#   are identical line by line (console-local-*.txt).
+# - Trip level (2025-01): same 3,203,825 trips, same schema and column order. The flag is identical for every trip
+#   (FLAG exceptAll 0 / 0; true 14,506, false 3,189,004, null 315 on both sides). Bucket counts are exact and every
+#   bucket's (count, σ = null) agrees: 5,535 buckets, 315 of them single-trip with a null σ, on both sides.
+# - The doubles are NOT bit-identical: 3,558 of 5,535 buckets differ in the last bits of their mean or σ, so whole-row
+#   exceptAll at trip level is 3,140,828 / 3,140,828 (the trips in those buckets). Max relative difference: mean
+#   1.12e-14, σ 4.03e-15, all within the 1e-12 tolerance. Cause: the window accumulates a bucket's values in one pass
+#   over its sorted rows; the aggregate sums per task first (partial_avg / partial_stddev) and merges the partial
+#   buffers, so floating-point additions happen in a different order.
+# - That can't flip a flag here: the closest trip to its threshold is 5.6e-5 relative away, 9 orders of magnitude
+#   more than the drift.
+# - No join key is null after M1 (KEYS 0 / 0), so the null-safe join and a plain one would match the same rows here.
+#
+# Negative control (control-opt2.scala): the same checks must fail on perturbed copies, in memory.
+CONTROL rate x(1+1e-9) on 1 row: exceptAll=1 unmatched=0 beyond_tol=1 max_rel=anomaly_rate:1.000000122637295E-9
+CONTROL flag flipped on 1 trip: exceptAll_without_stats=1 / 1
+CONTROL bucket (161, 18h) mean x(1+1e-9): unmatched=0 beyond_tol=1 max_rel=bucket_mean_fare_per_km:1.0000000820071496E-9,bucket_stddev_fare_per_km:0.0
+CONTROL bucket (161, 18h) bucket_trips+1: unmatched=2 beyond_tol=2
+# (bucket_trips+1 leaves the bucket unmatched on both sides, hence unmatched=2; the tolerance check also counts
+#  those 2 rows, whose doubles are null on one side.)
+#
+# Unit test (FareAnomaliesTest, `make check`): every hand-checked case runs on both plans, the two plans' flagged
+# trips are compared whole-row on the fixture, and two null-zone trips share one bucket of 2 in both plans. That test
+# fails when the join is a plain equalTo (checked by mutation: replacing eqNullSafe with equalTo fails it, 1 of 10).

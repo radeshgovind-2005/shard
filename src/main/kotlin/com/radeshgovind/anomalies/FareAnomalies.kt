@@ -18,10 +18,10 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.functions.`when`
 
 // O1's output: weekday vs weekend fare-anomaly rates per (day_type, payment_type, pickup_borough), from the cleaned
-// trips. Decisions D15–D22 in README → O1.
-// The flags are per trip (a window over the zone-hour bucket); only the rate table leaves this function (D21).
-// No orderBy: it would add a sort and a shuffle for nothing.
-fun Dataset<Row>.fareAnomalyRates(zones: Dataset<Row>): Dataset<Row> = fareAnomalies()
+// trips. Decisions D15–D22 and D31 in README → O1.
+// The flags are per trip (from the zone-hour bucket's statistics, computed by `plan`); only the rate table leaves this
+// function (D21). No orderBy: it would add a sort and a shuffle for nothing.
+fun Dataset<Row>.fareAnomalyRates(zones: Dataset<Row>, plan: BucketStatsPlan): Dataset<Row> = fareAnomalies(plan)
     .withPickupBorough(zones)
     .withDayType()
     .groupBy(*rateGroups())
@@ -30,9 +30,9 @@ fun Dataset<Row>.fareAnomalyRates(zones: Dataset<Row>): Dataset<Row> = fareAnoma
 
 // Every cleaned trip with its fare_per_km, its bucket's stats and is_fare_anomaly (D15–D18). withTripTimes adds
 // hour_of_day and day_of_week in NYC wall-clock time (D3, D7); its duration_min is unused and pruned by Catalyst.
-fun Dataset<Row>.fareAnomalies(): Dataset<Row> = withTripTimes()
+fun Dataset<Row>.fareAnomalies(plan: BucketStatsPlan): Dataset<Row> = withTripTimes()
     .withFarePerKm()
-    .withBucketFareStats()
+    .withBucketFareStats(plan)
     .withFareAnomalyFlag()
 
 // Top-level on purpose: inside an extension on Dataset, a bare col() resolves to the receiver's Dataset.col.

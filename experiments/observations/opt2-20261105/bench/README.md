@@ -1,0 +1,17 @@
+# OPT-2 measurement, 2026-11-05 (derived from run-ids)
+
+Derived from the profiled runs `local-20261105-17` … `-27` and `docker-20261105-12` … `-18` (all sha `39362e9`; LOG → Runs, "How the OPT-2 runs were run"). Before = `--skip-opts opt2` (the window), after = no flag, same jar. Warm-ups (discarded): local-17, docker-12. Local: off 18, 20, 22, 24, 26; on 19, 21, 23, 25, 27. Docker: off 13, 15, 17; on 14, 16, 18. Event logs stay in the gitignored `experiments/runs/<id>/eventlog/`; the tables taken from them are here. The first line of each file is its command (run from the repo root).
+
+| File | What | Command |
+|---|---|---|
+| `summary-local.txt`, `summary-docker.txt` | per op and total: median [min-max] (spread) of wall, stages, tasks, shuffle R/W, disk and memory spill, executor run time; before vs after; GC %; per-run walls | `python3 -I experiments/observations/opt2-20261105/bench/scripts/compare.py experiments/runs local local-20261105-18,local-20261105-20,local-20261105-22,local-20261105-24,local-20261105-26 local-20261105-19,local-20261105-21,local-20261105-23,local-20261105-25,local-20261105-27` (Docker: `docker docker-20261105-13,-15,-17` vs `-14,-16,-18`, full ids) |
+| `attribution-{local,docker}-{off,on}.txt` | baseline `attrib.py` per side: op wall, its largest-task-count stage ("scan"), median stage durations | `python3 -I experiments/observations/baseline-20261105/scripts/attrib.py experiments/runs <ids of one side>` |
+| `eventlog-<run>.txt` | per stage: job group, tasks, records read (48,722,602 = Parquet trips), shuffle records; scan `size of files read` per SQL execution | `zstd -dc experiments/runs/<run>/eventlog/*/events_* \| python3 -I experiments/observations/baseline-20261105/scripts/eventlog.py` |
+| `o1timeline-<run>.txt` | O1's stages with submission and completion time (s since the first O1 stage), tasks, input records, shuffle write, and whether a stage overlapped an earlier one (the first row, a 1-task stage, makes the second row print `yes`; ignore it) | `zstd -dc experiments/runs/<run>/eventlog/*/events_* \| python3 -I experiments/observations/opt2-20261105/bench/scripts/o1timeline.py` |
+| `scanrecs.txt` | per run and op: stages that read Parquet records, scan sizes per execution (O1: 2 stages and 1,659,958,929 B on, 1 and 829,985,630 B off) | `cd experiments/observations/opt2-20261105/bench && python3 -I scripts/scanrecs.py eventlog-*.txt > scanrecs.txt` |
+| `scripts/compare.py`, `scanrecs.py` | copied from `opt1-20261105/bench/scripts/` | |
+| `scripts/o1timeline.py` | written for this measurement (Python 3 standard library) | |
+
+The per-run per-op walls are in `experiments/analysis/opt2-20261105-wall.csv` (written from each `run.json`; `measured` = 0 for the warm-ups).
+
+**Who ran what:** Claude (`benchmark-runner`) ran every command, at the caller's request. Local: `make run ARGS="--input data --output output --years 2025 --run-id local-20261105-<n> --git-sha 39362e9 [--skip-opts opt2]"`; Docker: `docker compose -f docker/docker-compose.yml exec -T spark-master /opt/spark/bin/spark-submit --class com.radeshgovind.MainKt --master spark://spark-master:7077 /jars/shard-all.jar --input /data --output /output --years 2025 --run-id docker-20261105-<n> --git-sha 39362e9 --runs-dir /runs [--skip-opts opt2]`. Console output of the runs went to the session scratchpad; the printed tables were compared by md5 of their `|`/`+` lines (identical in all 18 runs).

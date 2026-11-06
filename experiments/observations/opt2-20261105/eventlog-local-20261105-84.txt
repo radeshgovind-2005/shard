@@ -1,0 +1,30 @@
+# zstd -dc /private/tmp/claude-501/opt2-check/local-20261105-84/eventlog/*/events_* | python3 -I experiments/observations/baseline-20261105/scripts/eventlog.py
+executors (cores): {'driver': 10}
+stage group  exec tasks conc span_s      recRead    shRecRead executors
+    0 -         -     1    1   0.12            0            0 {'driver': 1}
+    1 o1-ce36053f    0     1    1   0.13          265            0 {'driver': 1}
+    2 o1-ce36053f    0    10   10   0.66    3,475,226            0 {'driver': 10}
+    4 o1-ce36053f    0     1    1   0.06            0       18,632 {'driver': 1}
+    5 o1-ce36053f    0    10   10   0.44    3,475,226            0 {'driver': 10}
+    7 o1-ce36053f    0     1    1   0.29            0          135 {'driver': 1}
+    8 -         -     1    1   0.01            0            0 {'driver': 1}
+    9 -         1     1    1   0.02           52            0 {'driver': 1}
+   10 -         2     1    1   0.05           52            0 {'driver': 1}
+   12 -         2     1    1   0.02            0            3 {'driver': 1}
+
+SQL scan metrics per execution id
+  exec 0: {'number of files read': 3, 'metadata time': 2, 'size of files read': 118328807, 'number of written files': 1}
+  exec 1: {'number of files read': 1, 'metadata time': 0, 'size of files read': 2892}
+  exec 2: {'number of files read': 1, 'metadata time': 0, 'size of files read': 2892}
+
+# zstd -dc /private/tmp/claude-501/opt2-check/local-20261105-84/eventlog/*/events_* | python3 -I experiments/observations/opt2-20261105/scripts/broadcast-size.py
+BroadcastExchange | data size = 67,110,952
+BroadcastExchange | number of output rows = 263
+BroadcastExchange | time to collect = 273
+BroadcastExchange | time to build = 13
+BroadcastExchange | time to broadcast = 4
+BroadcastExchange | data size = 17,039,344
+BroadcastExchange | number of output rows = 5,535
+BroadcastExchange | time to collect = 99
+BroadcastExchange | time to build = 8
+BroadcastExchange | time to broadcast = 2
