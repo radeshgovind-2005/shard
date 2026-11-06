@@ -16,6 +16,8 @@ Operations:
 
 Spec: [`docs/Project_Description.md`](docs/Project_Description.md).
 
+**Report:** [`docs/report/report.pdf`](docs/report/report.pdf), built from [`docs/report/report.tex`](docs/report/report.tex) (the course's acmart template) with `latexmk -pdf -cd docs/report/report.tex`. Its charts are drawn from `experiments/analysis/*.csv`, and every number in it comes from [`experiments/LOG.md`](experiments/LOG.md).
+
 ## Requirements
 
 - **JDK 21.** Gradle provisions it automatically through the toolchain resolver. Spark 4.2 supports Java 17/21/25 (not 24), and 21 matches what clusters typically run.

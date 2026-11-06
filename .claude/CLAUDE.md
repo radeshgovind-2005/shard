@@ -25,7 +25,7 @@
 | `docs/lab-inputs.md` | Inputs from labs/course: Docker Spark and the Lab 3 profiler found; DI cluster and submission still pending |
 | `docs/assets/` | README images |
 | `docs/lectures/` | Lecture knowledge base (`index.md` first) |
-| `docs/report/` | LaTeX report (`template.tex`) |
+| `docs/report/` | LaTeX report (`report.tex`, built from `template.tex`) |
 | `.claude/agents/`, `commands/`, `skills/` | Agents, slash commands, the `kotlin-stepdown` skill |
 | `.claude/templates/` | Templates for new agents, commands and rules (not loaded) |
 | `.github/` | CI workflow, `main` ruleset, PR template |
