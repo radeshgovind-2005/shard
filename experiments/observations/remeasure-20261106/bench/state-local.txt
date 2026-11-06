@@ -1,0 +1,60 @@
+== local-20261106-12 (f) 2026-11-06 11:29:39
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	94%; discharging; 7:10 remaining present: true
+11:29  up 10 days, 22:28, 1 user, load averages: 1.51 2.43 3.82
+== local-20261106-13 (b) 2026-11-06 11:30:42
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	94%; discharging; 7:00 remaining present: true
+11:30  up 10 days, 22:29, 1 user, load averages: 4.80 3.32 4.06
+== local-20261106-14 (f) 2026-11-06 11:31:14
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	93%; discharging; 6:50 remaining present: true
+11:31  up 10 days, 22:29, 1 user, load averages: 8.37 4.26 4.37
+== local-20261106-15 (b) 2026-11-06 11:31:41
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	93%; discharging; 6:50 remaining present: true
+11:31  up 10 days, 22:30, 1 user, load averages: 10.43 5.02 4.64
+== local-20261106-16 (f) 2026-11-06 11:32:11
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	92%; discharging; 6:30 remaining present: true
+11:32  up 10 days, 22:30, 1 user, load averages: 11.99 5.96 5.00
+== local-20261106-17 (b) 2026-11-06 11:32:41
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	92%; discharging; 6:30 remaining present: true
+11:32  up 10 days, 22:31, 1 user, load averages: 14.39 7.06 5.42
+== local-20261106-18 (f) 2026-11-06 11:33:11
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	91%; discharging; 6:10 remaining present: true
+11:33  up 10 days, 22:31, 1 user, load averages: 12.37 7.36 5.59
+== local-20261106-19 (b) 2026-11-06 11:33:37
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	91%; discharging; 6:10 remaining present: true
+11:33  up 10 days, 22:32, 1 user, load averages: 15.62 8.48 6.04
+== local-20261106-20 (f) 2026-11-06 11:34:08
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	90%; discharging; 5:50 remaining present: true
+11:34  up 10 days, 22:32, 1 user, load averages: 17.12 9.48 6.49
+== local-20261106-21 (b) 2026-11-06 11:34:34
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	90%; discharging; 5:50 remaining present: true
+11:34  up 10 days, 22:33, 1 user, load averages: 19.67 10.59 6.97
+== local-20261106-22 (f) 2026-11-06 11:35:04
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	89%; discharging; 5:30 remaining present: true
+11:35  up 10 days, 22:33, 1 user, load averages: 17.64 10.95 7.22
+== local-20261106-23 (b) 2026-11-06 11:36:06
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	89%; discharging; 5:20 remaining present: true
+11:36  up 10 days, 22:34, 1 user, load averages: 8.00 9.46 6.94
+== local-20261106-24 (f) 2026-11-06 11:36:34
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	88%; discharging; 5:10 remaining present: true
+11:36  up 10 days, 22:35, 1 user, load averages: 10.44 9.98 7.20
+== local-20261106-25 (b) 2026-11-06 11:36:59
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	88%; discharging; 5:10 remaining present: true
+11:36  up 10 days, 22:35, 1 user, load averages: 11.54 10.22 7.36
+== local-20261106-26 (f) 2026-11-06 11:37:29
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	88%; discharging; 5:10 remaining present: true
+11:37  up 10 days, 22:36, 1 user, load averages: 12.88 10.61 7.60
