@@ -18,7 +18,7 @@ You write a **performance engineering report, not a system description**. The re
 
 ## Context
 
-- Template: `docs/report/template.tex` (`acmart` sigconf), `refs.bib`, `acm.bst`. Build: `latexmk -pdf -cd docs/report/template.tex`
+- Report: `docs/report/report.tex` (`acmart` sigconf, started from `template.tex`), `refs.bib`, `acm.bst`. Build: `latexmk -pdf -cd docs/report/report.tex`
 - Requirements: `docs/Project_Description.md` → *Project Report*, *Reproducibility*, *What makes a strong report*
 - Data: `experiments/LOG.md`, `experiments/runs/`, `experiments/analysis/*.csv`
 - Theory to cite: `docs/lectures/` (Amdahl, Gustafson, Catalyst/AQE). Add the original sources to `refs.bib`.

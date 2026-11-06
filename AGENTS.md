@@ -155,7 +155,7 @@ Never commit dataset files (`*.parquet`, `data/`), and never force-push or bypas
 
 - `docs/Project_Description.md`: assignment spec, report structure, grading
 - `docs/lectures/index.md`: lecture knowledge base (start here; it has a keyword lookup). For numbers and formulas: `docs/lectures/formulas-cheatsheet.md`
-- `docs/report/template.tex`: report template (acmart). Build with `latexmk -pdf -cd docs/report/template.tex`
+- `docs/report/report.tex`: the report (acmart, from `template.tex`; charts read `experiments/analysis/*.csv`). Build with `latexmk -pdf -cd docs/report/report.tex`. `template.tex` doesn't build on TeX Live 2026 (the bundled `acmart.cls` loads `hyperxmp` before `hyperref`); `report.tex` works around it in its first lines
 - `experiments/LOG.md`: environments, runs, observations (unmeasured leads from development runs), hypotheses, optimisations
 - `docs/lab-inputs.md`: what is still needed from the labs and the course (Docker Spark, Lab 3 profiler, DI cluster, submission)
 - `.claude/skills/kotlin-stepdown/`: code style, plus `references/spark.md` for Spark specifics
