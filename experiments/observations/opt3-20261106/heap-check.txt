@@ -1,0 +1,31 @@
+# OPT-3 (H6) 1 GiB feasibility check, 2025, O3 only. Not a measurement (one run each, Docker cluster idle).
+# spark-shell in the Docker master with local[2] and the default driver memory (1g): ONE 1 GiB JVM builds the
+# broadcast (driver role) and runs every task (executor role), with the pipeline jar's own functions
+# (build/libs/shard-all.jar = HEAD ec653c7 + uncommitted.diff, mounted at /jars), written to the `noop` sink.
+# Command (repo root), once with BROADCAST_LAG_SIDE (OPT-3 on) and once with PLAIN (--skip-opts opt3):
+#   S=experiments/observations/opt3-20261106/scripts; P=BROADCAST_LAG_SIDE
+#   (echo "val planName = \"$P\""; cat $S/heap-check.scala) | docker exec -i -e HOME=/tmp shard-spark-master-1 \
+#     /opt/spark/bin/spark-shell --master 'local[2]' --jars /jars/shard-all.jar --conf spark.ui.enabled=false \
+#     --conf spark.ui.showConsoleProgress=false --driver-java-options -Duser.home=/tmp | tr '\r' '\n' | grep -oE 'HEAP .*|WARN MemoryStore.*'
+# Two rounds; the first had no live_after_full_gc field (the script gained it before round 2).
+
+# round 1
+WARN MemoryStore: Not enough space to cache broadcast_11 in memory! (computed 215.9 MiB so far)
+HEAP plan=BROADCAST_LAG_SIDE outcome=ok max_heap=1024 MiB peak_used_sampled=1013 MiB peak[G1 Eden Space]=421 MiB peak[G1 Old Gen]=922 MiB peak[G1 Survivor Space]=48 MiB gc_count=100 gc_time_ms=564 bhj_leftouter_buildright=1 smj_leftouter=2 elapsed_s=17.4 (single run, not a measurement)
+HEAP plan=PLAIN outcome=ok max_heap=1024 MiB peak_used_sampled=993 MiB peak[G1 Eden Space]=361 MiB peak[G1 Old Gen]=728 MiB peak[G1 Survivor Space]=44 MiB gc_count=99 gc_time_ms=420 bhj_leftouter_buildright=0 smj_leftouter=3 elapsed_s=17.2 (single run, not a measurement)
+# round 2
+WARN MemoryStore: Not enough space to cache broadcast_11 in memory! (computed 215.9 MiB so far)
+HEAP plan=BROADCAST_LAG_SIDE outcome=ok max_heap=1024 MiB peak_used_sampled=1017 MiB peak[G1 Eden Space]=360 MiB peak[G1 Old Gen]=930 MiB peak[G1 Survivor Space]=48 MiB live_after_full_gc=195 MiB gc_count=139 gc_time_ms=668 bhj_leftouter_buildright=1 smj_leftouter=2 elapsed_s=17.4 (single run, not a measurement)
+HEAP plan=PLAIN outcome=ok max_heap=1024 MiB peak_used_sampled=977 MiB peak[G1 Eden Space]=339 MiB peak[G1 Old Gen]=700 MiB peak[G1 Survivor Space]=43 MiB live_after_full_gc=191 MiB gc_count=207 gc_time_ms=965 bhj_leftouter_buildright=0 smj_leftouter=3 elapsed_s=20.5 (single run, not a measurement)
+
+# Reading:
+# - Both plans finish in a 1 GiB JVM; the final plan has the BroadcastHashJoin LeftOuter BuildRight only with the hint.
+# - With the hint, Spark's MemoryStore can't keep the broadcast value in memory: "Not enough space to cache
+#   broadcast_11 in memory! (computed 215.9 MiB so far)" in both rounds, so it goes to disk (MEMORY_AND_DISK). Storage
+#   memory in a 1 GiB JVM is at most (1024 - 300) x 0.6 = 434 MiB, shared with execution. PLAIN logs no such warning.
+# - G1 Old Gen peaks at 922-930 MiB with the hint vs 700-728 MiB without (about +200 MiB, the relation's size).
+#   peak_used_sampled is near the heap size in both (G1 fills the heap before it collects), so it isn't informative.
+#   The heap live after a full GC once the write is done is the same (195 vs 191 MiB): the relation isn't retained.
+# - The Docker cluster splits the roles: the driver (master container, 1 GiB) builds the relation and keeps it in its
+#   block manager, and each executor (1 GiB, 2 task slots) deserializes one copy for its tasks. Each JVM holds one
+#   copy at a time, as here, but expect the same disk fallback in each.

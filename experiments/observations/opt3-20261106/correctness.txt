@@ -1,0 +1,32 @@
+# OPT-3 (H6) correctness on 2025-01 and 2025 (plan runs 81-84; README). O3 written by the same build (HEAD ec653c7 +
+# uncommitted.diff), local `make run`, --ops o3:
+#   off: output/opt3-off-2025-01/o3, output/opt3-off-2025/o3   --skip-opts opt3 (plain self-join, D27)   local-20261106-83 / -81
+#   on:  output/opt3-on-2025-01/o3,  output/opt3-on-2025/o3    default (broadcast() on the lag side)      local-20261106-84 / -82
+# Command (repo root; the Docker master mounts output/ at /output; local[2] inside the master, the workers unused):
+#   S=experiments/observations/opt3-20261106/scripts
+#   cat $S/compare-opt3.scala $S/run-pairs.scala | docker exec -i -e HOME=/tmp shard-spark-master-1 \
+#     /opt/spark/bin/spark-shell --master 'local[2]' --conf spark.ui.enabled=false \
+#     --conf spark.ui.showConsoleProgress=false --driver-java-options -Duser.home=/tmp | tr '\r' '\n' | grep -oE 'RESULT .*'
+#   (the same with $S/control-opt3.scala instead of run-pairs.scala for the negative control)
+# Checks (compare-opt3.scala, reused from h5-attempt-20261105): schema; rows; exceptAll both ways on whole rows
+# (0 = bit for bit); full outer join on (PULocationID, pickup_date, hour_of_day): unmatched keys, non-double columns
+# exact (null-safe: ints, longs, the flag, the date, service_zone), doubles within 1e-12 relative; Σ trip_count, rows
+# with a lag, spikes per side.
+
+RESULT 2025-01 off-vs-on schema_equal=true rows_off=195,672 rows_on=195,672 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 exact_cols_differ=0 doubles_beyond_tol=0 max_rel_diff=hist_mean_trips:0.0,hist_var_trips:0.0,demand_index:0.0 off(sum_trips,rows_with_lag,spikes)=[3203803,18936,15685] on=[3203803,18936,15685]
+RESULT 2025 off-vs-on schema_equal=true rows_off=2,303,880 rows_on=2,303,880 exceptAll(off-on)=0 exceptAll(on-off)=0 key_unique=true unmatched_keys=0 exact_cols_differ=0 doubles_beyond_tol=0 max_rel_diff=hist_mean_trips:0.0,hist_var_trips:0.0,demand_index:0.0 off(sum_trips,rows_with_lag,spikes)=[43599803,2127144,226925] on=[43599803,2127144,226925]
+
+# Negative control (perturbed copies of the 2025 off output, in memory):
+RESULT CONTROL var x(1+1e-9) on 1 row schema_equal=true rows_off=2,303,880 rows_on=2,303,880 exceptAll(off-on)=1 exceptAll(on-off)=1 key_unique=true unmatched_keys=0 exact_cols_differ=0 doubles_beyond_tol=1 max_rel_diff=hist_mean_trips:0.0,hist_var_trips:1.0000000594715002E-9,demand_index:0.0 off(sum_trips,rows_with_lag,spikes)=[43599803,2127144,226925] on=[43599803,2127144,226925]
+RESULT CONTROL lag+1 on the same row schema_equal=true rows_off=2,303,880 rows_on=2,303,880 exceptAll(off-on)=1 exceptAll(on-off)=1 key_unique=true unmatched_keys=0 exact_cols_differ=1 doubles_beyond_tol=0 max_rel_diff=hist_mean_trips:0.0,hist_var_trips:0.0,demand_index:0.0 off(sum_trips,rows_with_lag,spikes)=[43599803,2127144,226925] on=[43599803,2127144,226925]
+RESULT CONTROL one row dropped schema_equal=true rows_off=2,303,880 rows_on=2,303,879 exceptAll(off-on)=1 exceptAll(on-off)=0 key_unique=true unmatched_keys=1 exact_cols_differ=1 doubles_beyond_tol=1 max_rel_diff=hist_mean_trips:0.0,hist_var_trips:0.0,demand_index:0.0 off(sum_trips,rows_with_lag,spikes)=[43599803,2127144,226925] on=[43599190,2127143,226925]
+
+# Printed rollups (console-local-20261106-8x.txt): identical line by line off vs on, at both scales.
+#   2025-01: rows 195,672, Σ trip_count 3,203,803, rows_with_lag 18,936, spikes 15,685, zero_mean 60,155
+#   2025:    rows 2,303,880, Σ trip_count 43,599,803, rows_with_lag 2,127,144, spikes 226,925, zero_mean 178,626
+#
+# Verdict: bit-identical at both scales. Rows 195,672 = 195,672 and 2,303,880 = 2,303,880, every key matched once,
+# exceptAll 0 both ways (so every double is equal bit for bit, max relative difference 0.0; the 1e-12 tolerance
+# wasn't needed), rows_with_lag 18,936 / 2,127,144 on both sides. The window runs on the same input in the same
+# stage layout in both plans, so its summation order doesn't change; only the self-join's physical operator does.
+# The control catches a 1e-9 relative bump of one variance, +1 on one lag and one dropped row.

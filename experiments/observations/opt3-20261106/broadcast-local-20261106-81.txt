@@ -1,0 +1,11 @@
+# zstd -dc /private/tmp/claude-501/opt3h6-check/local-20261106-81/eventlog/*/events_* | python3 -I experiments/observations/opt2-20261105/scripts/broadcast-size.py
+BroadcastExchange | data size = 4,208
+BroadcastExchange | number of output rows = 263
+BroadcastExchange | time to collect = 297
+BroadcastExchange | time to build = 2
+BroadcastExchange | time to broadcast = 4
+BroadcastExchange | data size = 67,110,968
+BroadcastExchange | number of output rows = 265
+BroadcastExchange | time to collect = 380
+BroadcastExchange | time to build = 17
+BroadcastExchange | time to broadcast = 6

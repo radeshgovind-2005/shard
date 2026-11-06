@@ -1,0 +1,44 @@
+== docker-20261106-01 on
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106110533-0000 lines=     896: MemoryStore-not-enough=2 OOM=0 timeout=0 taskfail=0 WARN=4 tasks-finished=60
+worker2 app=app-20261106110533-0000 lines=     796: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=55
+== docker-20261106-02 off
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106110639-0001 lines=     840: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=52
+worker2 app=app-20261106110639-0001 lines=     909: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=68
+== docker-20261106-03 on
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106110744-0002 lines=     701: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=46
+worker2 app=app-20261106110744-0002 lines=     994: MemoryStore-not-enough=2 OOM=0 timeout=0 taskfail=0 WARN=4 tasks-finished=69
+== docker-20261106-04 off
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106110849-0003 lines=     901: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=66
+worker2 app=app-20261106110849-0003 lines=     885: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=54
+== docker-20261106-05 on
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106110954-0004 lines=     962: MemoryStore-not-enough=1 OOM=0 timeout=0 taskfail=0 WARN=3 tasks-finished=61
+worker2 app=app-20261106110954-0004 lines=     807: MemoryStore-not-enough=1 OOM=0 timeout=0 taskfail=0 WARN=3 tasks-finished=54
+== docker-20261106-06 off
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106111059-0005 lines=     803: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=62
+worker2 app=app-20261106111059-0005 lines=     949: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=58
+== docker-20261106-07 on
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106111207-0006 lines=     949: MemoryStore-not-enough=1 OOM=0 timeout=0 taskfail=0 WARN=3 tasks-finished=61
+worker2 app=app-20261106111207-0006 lines=     820: MemoryStore-not-enough=1 OOM=0 timeout=0 taskfail=0 WARN=3 tasks-finished=54
+== docker-20261106-08 off
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106111330-0007 lines=     937: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=67
+worker2 app=app-20261106111330-0007 lines=     816: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=53
+== docker-20261106-09 on
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106111436-0008 lines=     968: MemoryStore-not-enough=2 OOM=0 timeout=0 taskfail=0 WARN=4 tasks-finished=63
+worker2 app=app-20261106111436-0008 lines=     746: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=52
+== docker-20261106-10 off
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106111543-0009 lines=     850: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=62
+worker2 app=app-20261106111543-0009 lines=     936: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=58
+== docker-20261106-11 on
+driver: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1
+worker1 app=app-20261106111647-0010 lines=     773: MemoryStore-not-enough=0 OOM=0 timeout=0 taskfail=0 WARN=1 tasks-finished=52
+worker2 app=app-20261106111647-0010 lines=     936: MemoryStore-not-enough=2 OOM=0 timeout=0 taskfail=0 WARN=4 tasks-finished=63
