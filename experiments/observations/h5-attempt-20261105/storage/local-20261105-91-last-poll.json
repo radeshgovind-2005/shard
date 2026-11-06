@@ -1,0 +1,86 @@
+[ {
+  "id" : 25,
+  "name" : "AdaptiveSparkPlan isFinalPlan=false\n+- Project [PULocationID#40, hour_index#42, trip_count#60L, pickup_date#61, dayofweek(pickup_date#61) AS day_of_week#62, pmod(hour_index#42, 24) AS hour_of_day#63]\n   +- Project [PULocationID#40, hour_index#42, coalesce(trip_count#44L, 0) AS trip_count#60L, date_from_unix_date(cast(FLOOR((cast(hour_index#42 as double) / 24.0)) as int)) AS pickup_date#61]\n      +- SortMergeJoin [PULocationID#40, hour_index#42], [PULocationID#7, hour_index#43], LeftOuter\n         :- Sort [PULocationID#40 ASC NULLS FIRST, hour_index#42 ASC NULLS FIRST], false, 0\n         :  +- Exchange hashpartitioning(PULocationID#40, hour_index#42, 200), ENSURE_REQUIREMENTS, [plan_id=55]\n         :     +- BroadcastNestedLoopJoin BuildLeft, Cross\n         :        :- BroadcastExchange IdentityBroadcastMode, [plan_id=49]\n         :        :  +- Project [cast(id#39L as int) AS PULocationID#40]\n         :        :     +- Range (1, 264, step=1, splits=10)\n         :        +- Project [cast(id#41L as int) AS ho...",
+  "numPartitions" : 11,
+  "numCachedPartitions" : 11,
+  "storageLevel" : "Disk Memory Deserialized 1x Replicated",
+  "memoryUsed" : 12283416,
+  "diskUsed" : 0,
+  "dataDistribution" : [ {
+    "address" : "192.168.0.181:59308",
+    "memoryUsed" : 12283416,
+    "memoryRemaining" : 3664089867,
+    "diskUsed" : 0,
+    "onHeapMemoryUsed" : 12283416,
+    "offHeapMemoryUsed" : 0,
+    "onHeapMemoryRemaining" : 3664089867,
+    "offHeapMemoryRemaining" : 0
+  } ],
+  "partitions" : [ {
+    "blockName" : "rdd_25_1",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1167200,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_6",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1168072,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_5",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1167256,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_8",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1164648,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_3",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1223632,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_0",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1166768,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_4",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1169656,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_2",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1166840,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_7",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1227952,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_9",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 1223648,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_10",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 437744,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  } ]
+} ]

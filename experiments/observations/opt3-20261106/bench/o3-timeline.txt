@@ -1,0 +1,33 @@
+# per run: broadcast driver metrics (on), O3 final stage (off: self-join stage; on: window+join stage) duration, gap between the last earlier stage's completion and the final stage's submission, O3 span first submit -> last done. From evsummary-<run>.txt (scripts/evsummary.py).
+
+## local off
+local-20261106-02: final-stage 1.08 s, gap before it 0.05 s, span 7.48 s
+local-20261106-04: final-stage 1.11 s, gap before it 0.05 s, span 8.47 s
+local-20261106-06: final-stage 1.42 s, gap before it 0.05 s, span 7.76 s
+local-20261106-08: final-stage 1.04 s, gap before it 0.05 s, span 7.79 s
+local-20261106-10: final-stage 1.33 s, gap before it 0.06 s, span 7.55 s
+median final-stage 1.11 [1.04-1.42] s; gap 0.05 [0.05-0.06] s; span 7.76 [7.48-8.47] s
+
+## local on
+local-20261106-03: final-stage 1.81 s, gap before it 1.07 s, span 9.30 s | data size = 268,435,424; number of output rows = 2,303,880; time to broadcast = 336; time to build = 671; time to collect = 2,932
+local-20261106-05: final-stage 1.30 s, gap before it 0.95 s, span 7.64 s | data size = 268,435,424; number of output rows = 2,303,880; time to broadcast = 333; time to build = 561; time to collect = 2,151
+local-20261106-07: final-stage 1.76 s, gap before it 0.96 s, span 9.04 s | data size = 268,435,424; number of output rows = 2,303,880; time to broadcast = 333; time to build = 564; time to collect = 3,135
+local-20261106-09: final-stage 1.80 s, gap before it 0.96 s, span 8.36 s | data size = 268,435,424; number of output rows = 2,303,880; time to broadcast = 322; time to build = 576; time to collect = 2,124
+local-20261106-11: final-stage 2.22 s, gap before it 0.95 s, span 8.46 s | data size = 268,435,424; number of output rows = 2,303,880; time to broadcast = 323; time to build = 563; time to collect = 2,140
+median final-stage 1.80 [1.30-2.22] s; gap 0.96 [0.95-1.07] s; span 8.46 [7.64-9.30] s
+
+## docker off
+docker-20261106-02: final-stage 2.86 s, gap before it 0.06 s, span 13.65 s
+docker-20261106-04: final-stage 1.63 s, gap before it 0.06 s, span 12.86 s
+docker-20261106-06: final-stage 3.58 s, gap before it 0.06 s, span 15.09 s
+docker-20261106-08: final-stage 3.27 s, gap before it 0.07 s, span 14.46 s
+docker-20261106-10: final-stage 1.61 s, gap before it 0.05 s, span 13.12 s
+median final-stage 2.86 [1.61-3.58] s; gap 0.06 [0.05-0.07] s; span 13.65 [12.86-15.09] s
+
+## docker on
+docker-20261106-03: final-stage 3.72 s, gap before it 1.42 s, span 14.00 s | data size = 268,435,392; number of output rows = 2,303,880; time to broadcast = 312; time to build = 880; time to collect = 4,320
+docker-20261106-05: final-stage 2.97 s, gap before it 1.32 s, span 12.09 s | data size = 268,435,392; number of output rows = 2,303,880; time to broadcast = 317; time to build = 913; time to collect = 3,044
+docker-20261106-07: final-stage 2.69 s, gap before it 1.34 s, span 12.24 s | data size = 268,435,392; number of output rows = 2,303,880; time to broadcast = 325; time to build = 944; time to collect = 2,814
+docker-20261106-09: final-stage 3.32 s, gap before it 1.25 s, span 14.54 s | data size = 268,435,392; number of output rows = 2,303,880; time to broadcast = 323; time to build = 850; time to collect = 5,249
+docker-20261106-11: final-stage 3.42 s, gap before it 1.28 s, span 14.20 s | data size = 268,435,392; number of output rows = 2,303,880; time to broadcast = 313; time to build = 906; time to collect = 4,798
+median final-stage 3.32 [2.69-3.72] s; gap 1.32 [1.25-1.42] s; span 14.00 [12.09-14.54] s

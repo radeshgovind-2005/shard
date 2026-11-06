@@ -1,0 +1,112 @@
+package com.radeshgovind.forecast
+
+import com.radeshgovind.cli.MonthRange
+import com.radeshgovind.ingest.ENFORCED_SCHEMA
+import com.radeshgovind.localTestSession
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.RowFactory
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.storage.StorageLevel
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.BeforeAll
+import java.time.LocalDateTime
+import java.time.YearMonth
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+// OPT-3 (H5): Pipeline.kt caches `hourly`, the zero-filled grid, for O3's write. What that relies on: both sides of
+// the 4-week self-join read the cache, and the forecast is the same as without it.
+class CachedHourlyGridTest {
+    @Test
+    fun `both self-join sides read the cached grid`() {
+        withCachedHourly { assertEquals(2, cacheReadsIn(it.demandForecast(zones()))) }
+    }
+
+    @Test
+    fun `the cached grid gives the same forecast`() {
+        val recomputed = forecastRows(hourly())
+        withCachedHourly { assertSameRows(recomputed, forecastRows(it)) }
+    }
+
+    private fun withCachedHourly(check: (Dataset<Row>) -> Unit) {
+        val hourly = hourly().persist(StorageLevel.MEMORY_AND_DISK())
+        try {
+            check(hourly)
+        } finally {
+            hourly.unpersist(true)
+        }
+    }
+
+    private fun cacheReadsIn(forecast: Dataset<Row>): Int =
+        Regex("InMemoryRelation").findAll(forecast.queryExecution().withCachedData().toString()).count()
+
+    // Keyed on (zone, date, hour of day).
+    private fun forecastRows(hourly: Dataset<Row>): Map<List<Any?>, Row> =
+        hourly.demandForecast(zones()).collectAsList().associateBy { listOf(it.get(0), it.get(2), it.get(4)) }
+
+    private fun assertSameRows(expected: Map<List<Any?>, Row>, actual: Map<List<Any?>, Row>) {
+        assertEquals(expected.keys, actual.keys)
+        expected.forEach { (key, row) -> assertSameRow(row, actual.getValue(key)) }
+    }
+
+    private fun assertSameRow(expected: Row, actual: Row) = (0 until expected.size()).forEach {
+        assertSameValue(expected.get(it), actual.get(it))
+    }
+
+    // The window's summation order may change with the plan, so doubles get a tolerance; the rest must be exact.
+    private fun assertSameValue(expected: Any?, actual: Any?) = when (expected) {
+        is Double -> assertEquals(expected, actual as Double, TOLERANCE)
+        else -> assertEquals(expected, actual)
+    }
+
+    companion object {
+        private lateinit var spark: SparkSession
+
+        @JvmStatic
+        @BeforeAll
+        fun startSpark() {
+            spark = localTestSession()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun stopSpark() {
+            spark.stop()
+        }
+
+        private fun hourly(): Dataset<Row> = spark.createDataFrame(TRIPS.map(::tripRow), ENFORCED_SCHEMA)
+            .zeroFilledHourlyCounts(spark.zoneHourGrid(JAN_TO_FEB, 1..2))
+
+        private fun zones(): Dataset<Row> = spark.createDataFrame(ZONES, ZONE_SCHEMA)
+
+        // Positional, in ENFORCED_SCHEMA order. Only the pickup zone and time matter to O3.
+        private fun tripRow(trip: Pair<Int, LocalDateTime>): Row = RowFactory.create(
+            trip.second, trip.second.plusMinutes(15), trip.first, 200, 1, 1, 1,
+            2.0, 10.0, 2.0, 12.0, trip.second.year, trip.second.monthValue,
+        )
+
+        private const val TOLERANCE = 1e-12
+
+        private val JAN_TO_FEB = MonthRange(YearMonth.of(2025, 1), YearMonth.of(2025, 2))
+
+        private val ZONE_SCHEMA: StructType =
+            StructType.fromDDL("LocationID INT, Borough STRING, Zone STRING, service_zone STRING")
+
+        private val ZONES: List<Row> = listOf(
+            RowFactory.create(1, "EWR", "Newark Airport", "EWR"),
+            RowFactory.create(2, "Queens", "Jamaica Bay", "Boro Zone"),
+        )
+
+        // Zone 1 on 2025-01-06 08:00 and 4 weeks later (a lag of 1); zone 2 twice on 2025-01-15 10:00; zone 1 on
+        // 2025-02-20 18:00, whose lag hour is empty (0).
+        private val TRIPS: List<Pair<Int, LocalDateTime>> = listOf(
+            1 to LocalDateTime.of(2025, 1, 6, 8, 10),
+            1 to LocalDateTime.of(2025, 2, 3, 8, 20),
+            2 to LocalDateTime.of(2025, 1, 15, 10, 5),
+            2 to LocalDateTime.of(2025, 1, 15, 10, 45),
+            1 to LocalDateTime.of(2025, 2, 20, 18, 0),
+        )
+    }
+}

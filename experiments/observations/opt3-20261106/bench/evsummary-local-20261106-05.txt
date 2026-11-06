@@ -1,0 +1,11 @@
+# BroadcastExchange driver metrics per SQL execution (rows >= 100000 only; the others are the small zone broadcasts)
+execution 9: data size = 268,435,424; number of output rows = 2,303,880; time to broadcast = 333; time to build = 561; time to collect = 2,151
+# failed tasks 0 []; failed stages 0; failed jobs 0; executors removed 0
+# O3 stages: id, tasks, submitted s, completed s, duration s, shuffle read B, shuffle write B
+52	1	0.00	0.01	0.01	0	0
+53	12	0.00	3.21	3.21	0	16731216
+54	10	0.01	2.23	2.22	0	0
+55	10	2.27	2.89	0.62	0	17798867
+58	11	3.26	4.95	1.69	34530083	36538179
+59	11	3.26	5.38	2.11	34530083	0
+63	10	6.33	7.64	1.30	36538179	0

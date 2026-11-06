@@ -1,0 +1,10 @@
+# from local-20261106-82/run.json; args: {"input": "data", "output": "output/opt3-on-2025", "years": "2025-01..2025-12", "fraction": "1.0", "ops": "o3", "skip_opts": ""}
+# block {'name': 'o3', 'wall_time_s': 11.9, 'num_jobs': 7, 'num_stages': 7, 'num_tasks': 65, 'executor_run_time_ms': 91454, 'executor_cpu_time_ms': 63652, 'input_bytes': 158662, 'output_bytes': 12305510, 'shuffle_read_bytes': 105598345, 'shuffle_write_bytes': 71068262, 'memory_spilled_bytes': 0, 'disk_spilled_bytes': 0, 'jvm_gc_time_ms': 2454}
+stage tasks  run_ms  shuffle_read_B shuffle_write_B   output_B spill_disk_B
+    1    10    1079               0               0          0            0
+    2     1     119               0               0          0            0
+    3    12   33844               0        16731216          0            0
+    4    10    5996               0        17798867          0            0
+    7    11   23674        34530083        36538179          0            0
+    8    11    6946        34530083               0          0            0
+   12    10   19796        36538179               0   12305510            0

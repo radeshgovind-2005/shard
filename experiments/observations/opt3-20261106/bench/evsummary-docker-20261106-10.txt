@@ -1,0 +1,11 @@
+# BroadcastExchange driver metrics per SQL execution (rows >= 100000 only; the others are the small zone broadcasts)
+# failed tasks 0 []; failed stages 0; failed jobs 0; executors removed 0
+# O3 stages: id, tasks, submitted s, completed s, duration s, shuffle read B, shuffle write B
+52	1	0.00	0.07	0.07	0	0
+53	10	0.01	4.59	4.59	0	16603807
+54	4	0.01	3.02	3.01	0	0
+55	4	3.06	3.47	0.41	0	18288222
+58	4	4.69	10.11	5.42	34892029	33152136
+59	4	4.70	8.58	3.88	34892029	23509220
+63	4	10.14	11.45	1.31	33152136	65345144
+69	5	11.50	13.12	1.61	88854364	0
