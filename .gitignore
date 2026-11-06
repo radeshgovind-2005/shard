@@ -67,3 +67,12 @@ derby.log
 # Other AI tools mirroring the .claude setup (Codex); .claude/ is the source of truth
 .agents/
 .codex/
+
+# LaTeX build files (the report PDF itself is not ignored)
+docs/report/*.aux
+docs/report/*.bbl
+docs/report/*.blg
+docs/report/*.fdb_latexmk
+docs/report/*.fls
+docs/report/*.out
+docs/report/*.synctex.gz
