@@ -1,0 +1,1220 @@
+[ {
+  "id" : 25,
+  "name" : "AdaptiveSparkPlan isFinalPlan=false\n+- Project [PULocationID#40, hour_index#42, trip_count#60L, pickup_date#61, dayofweek(pickup_date#61) AS day_of_week#62, pmod(hour_index#42, 24) AS hour_of_day#63]\n   +- Project [PULocationID#40, hour_index#42, coalesce(trip_count#44L, 0) AS trip_count#60L, date_from_unix_date(cast(FLOOR((cast(hour_index#42 as double) / 24.0)) as int)) AS pickup_date#61]\n      +- SortMergeJoin [PULocationID#40, hour_index#42], [PULocationID#7, hour_index#43], LeftOuter\n         :- Sort [PULocationID#40 ASC NULLS FIRST, hour_index#42 ASC NULLS FIRST], false, 0\n         :  +- Exchange hashpartitioning(PULocationID#40, hour_index#42, 200), ENSURE_REQUIREMENTS, [plan_id=55]\n         :     +- BroadcastNestedLoopJoin BuildLeft, Cross\n         :        :- BroadcastExchange IdentityBroadcastMode, [plan_id=49]\n         :        :  +- Project [cast(id#39L as int) AS PULocationID#40]\n         :        :     +- Range (1, 264, step=1, splits=10)\n         :        +- Project [cast(id#41L as int) AS ho...",
+  "numPartitions" : 200,
+  "numCachedPartitions" : 200,
+  "storageLevel" : "Disk Memory Deserialized 1x Replicated",
+  "memoryUsed" : 18043080,
+  "diskUsed" : 0,
+  "dataDistribution" : [ {
+    "address" : "192.168.0.181:58993",
+    "memoryUsed" : 18043080,
+    "memoryRemaining" : 3658323294,
+    "diskUsed" : 0,
+    "onHeapMemoryUsed" : 18043080,
+    "offHeapMemoryUsed" : 0,
+    "onHeapMemoryRemaining" : 3658323294,
+    "offHeapMemoryRemaining" : 0
+  } ],
+  "partitions" : [ {
+    "blockName" : "rdd_25_3",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89592,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_7",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90320,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_0",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88776,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_4",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89384,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_6",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90352,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_8",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89632,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_1",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90752,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_9",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90808,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_5",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90552,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_2",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90576,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_12",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89064,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_10",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89400,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_16",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 92424,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_11",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90736,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_20",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89744,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_15",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91296,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_17",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90128,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_13",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90024,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_18",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91280,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_19",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90552,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_14",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90616,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_21",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91328,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_23",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90432,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_24",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90192,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_32",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90584,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_26",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90240,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_28",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90072,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_22",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89992,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_29",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88680,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_27",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90072,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_31",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89416,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_30",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90496,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_25",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89376,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_33",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91448,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_36",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91072,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_34",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90320,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_35",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90480,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_44",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90688,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_38",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90872,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_37",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 92368,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_40",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90264,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_39",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90536,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_41",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89272,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_45",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90240,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_42",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90776,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_46",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91040,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_43",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90008,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_47",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89976,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_49",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89896,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_55",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89992,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_48",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90552,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_52",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90616,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_54",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90752,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_53",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90608,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_56",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89208,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_51",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88864,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_50",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90320,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_57",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91816,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_61",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90064,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_58",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89224,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_59",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90256,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_62",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89016,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_60",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89320,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_63",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90072,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_67",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90696,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_66",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90488,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_65",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90232,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_64",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89720,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_70",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90520,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_68",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89688,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_74",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90832,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_69",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88720,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_72",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88432,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_76",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 92472,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_75",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89576,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_77",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90832,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_79",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89736,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_71",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89944,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_73",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90536,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_80",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88888,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_78",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88368,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_81",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89800,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_84",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91032,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_85",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90968,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_82",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90120,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_83",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90072,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_87",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90312,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_89",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90552,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_86",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90240,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_88",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90440,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_92",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90312,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_91",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89696,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_90",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91544,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_96",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90552,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_97",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90696,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_99",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 92024,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_100",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 92216,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_95",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90432,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_98",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89360,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_103",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89200,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_93",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90920,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_102",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90600,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_94",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90440,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_104",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91144,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_101",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90040,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_106",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89800,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_109",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89824,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_105",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90640,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_108",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90120,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_107",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90160,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_110",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90704,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_115",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90112,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_111",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89352,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_113",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89816,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_117",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90568,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_112",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90000,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_114",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90264,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_121",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90056,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_119",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91360,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_118",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90992,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_116",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90728,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_120",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89368,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_122",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89704,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_124",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90728,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_127",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91128,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_123",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90576,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_126",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89808,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_125",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91352,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_133",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89248,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_129",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90232,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_128",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90192,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_130",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88784,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_134",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90360,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_136",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91920,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_131",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90392,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_135",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90824,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_137",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90088,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_132",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89328,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_138",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90160,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_140",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90648,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_139",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90312,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_141",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91208,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_142",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88976,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_147",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90296,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_145",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90552,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_148",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89448,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_143",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90240,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_149",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90584,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_146",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89608,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_144",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90168,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_152",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89928,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_151",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90112,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_156",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91312,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_154",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90288,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_159",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90384,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_155",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90176,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_153",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89248,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_150",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89536,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_157",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89544,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_158",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90536,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_162",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91128,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_164",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90144,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_160",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89192,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_166",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90520,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_161",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91568,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_168",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89416,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_167",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89320,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_170",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90672,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_163",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90352,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_169",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90192,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_172",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89416,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_165",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89584,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_173",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89208,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_171",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89128,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_178",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91944,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_174",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90160,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_181",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89760,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_175",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91656,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_182",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89248,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_176",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90056,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_177",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89768,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_179",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89512,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_180",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90088,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_184",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89520,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_183",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89384,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_188",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89704,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_185",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90216,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_186",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90488,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_190",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89872,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_189",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89576,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_193",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91240,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_191",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90176,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_192",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90128,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_187",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89160,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_195",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89016,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_196",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 88976,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_198",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91008,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_197",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 89976,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_194",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 91432,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  }, {
+    "blockName" : "rdd_25_199",
+    "storageLevel" : "Memory Deserialized 1x Replicated",
+    "memoryUsed" : 90168,
+    "diskUsed" : 0,
+    "executors" : [ "driver" ]
+  } ]
+} ]

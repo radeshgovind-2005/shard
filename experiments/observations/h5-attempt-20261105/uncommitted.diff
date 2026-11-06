@@ -1,0 +1,309 @@
+diff --git a/src/main/kotlin/com/radeshgovind/Pipeline.kt b/src/main/kotlin/com/radeshgovind/Pipeline.kt
+index 8f0416b..9991f88 100644
+--- a/src/main/kotlin/com/radeshgovind/Pipeline.kt
++++ b/src/main/kotlin/com/radeshgovind/Pipeline.kt
+@@ -18,6 +18,7 @@ import com.radeshgovind.forecast.ForecastColumns.HIST_MEAN_TRIPS
+ import com.radeshgovind.forecast.ForecastColumns.IS_DEMAND_SPIKE
+ import com.radeshgovind.forecast.ForecastColumns.LAG_4W_TRIP_COUNT
+ import com.radeshgovind.forecast.demandForecast
++import com.radeshgovind.forecast.zeroFilledHourlyCounts
+ import com.radeshgovind.forecast.zoneHourGrid
+ import com.radeshgovind.ingest.TripColumns.PAYMENT_TYPE
+ import com.radeshgovind.ingest.TripColumns.SOURCE_YEAR
+@@ -42,11 +43,12 @@ import org.apache.spark.sql.functions.count
+ import org.apache.spark.sql.functions.lit
+ import org.apache.spark.sql.functions.sum
+ import org.apache.spark.sql.functions.`when`
++import org.apache.spark.storage.StorageLevel
+ import java.nio.file.Path
+ 
+ // The story of the pipeline. Spark actions (write, show, collect) happen only in this file.
+ // Each operation's one write runs inside profiler.profile("<op>") { … }, and nothing else does.
+-// Nothing is cached yet: each operation re-reads and re-cleans the input (the baseline).
++// The cleaned trips aren't cached: each operation re-reads and re-cleans the input (OPT-1 was reverted).
+ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Found) {
+     val profiler = profilerFor(spark, args)
+     val trips = spark.loadTrips(tripFiles, args.fraction).enforceSchema()
+@@ -63,8 +65,8 @@ fun runPipeline(spark: SparkSession, args: PipelineArgs, tripFiles: TripFiles.Fo
+         writeFareAnomalyRates(cleaned, spark.loadZones(args.input), plan, args.outputOf(Operation.O1), profiler)
+     }
+     if (Operation.O3 in args.operations) {
+-        val grid = spark.zoneHourGrid(args.months)
+-        writeDemandForecast(cleaned, grid, spark.loadZones(args.input), args.outputOf(Operation.O3), profiler)
++        val hourly = cleaned.zeroFilledHourlyCounts(spark.zoneHourGrid(args.months))
++        writeDemandForecast(hourly, spark.loadZones(args.input), args, profiler)
+     }
+     profiler.finish()
+ }
+@@ -159,18 +161,28 @@ private fun printAnomalyRates(spark: SparkSession, out: Path) {
+ 
+ private const val MAX_RATE_ROWS = 200
+ 
+-// The grid (zones 1–263 × every hour of --years, D25) is a parameter, so its size is visible here. Not partitioned.
+-private fun writeDemandForecast(
+-    cleaned: Dataset<Row>,
+-    grid: Dataset<Row>,
+-    zones: Dataset<Row>,
+-    out: Path,
+-    profiler: Profiler,
+-) {
+-    profiler.profile("o3") {
+-        cleaned.demandForecast(grid, zones).write().mode(SaveMode.Overwrite).parquet(out.toString())
++// `hourly` is the zero-filled grid (zones 1–263 × every hour of --years, D25), built in runPipeline so that its size
++// is visible there. Not partitioned.
++private fun writeDemandForecast(hourly: Dataset<Row>, zones: Dataset<Row>, args: PipelineArgs, profiler: Profiler) {
++    val out = args.outputOf(Operation.O3)
++    hourly.cachedForOpt3(args) {
++        profiler.profile("o3") { hourly.demandForecast(zones).write().mode(SaveMode.Overwrite).parquet(out.toString()) }
++    }
++    printForecastTotals(hourly.sparkSession(), out)
++}
++
++// OPT-3 (H5): both sides of O3's self-join read `hourly`. Cached, it's computed once, by the write that fills the
++// cache, and dropped right after that write. MEMORY_AND_DISK: a Dataset cache is already compressed columnar batches
++// (12–18 MB in all on 2025), and a partition that doesn't fit goes to disk instead of being recomputed.
++// --skip-opts opt3: no cache, so each side recomputes the zero-fill join (the baseline).
++private fun Dataset<Row>.cachedForOpt3(args: PipelineArgs, write: () -> Unit) {
++    if (!args.isApplied(Optimisation.OPT3)) return write()
++    persist(StorageLevel.MEMORY_AND_DISK())
++    try {
++        write()
++    } finally {
++        unpersist()
+     }
+-    printForecastTotals(cleaned.sparkSession(), out)
+ }
+ 
+ // Reads back the written zone-hour rows: per service zone the trips, rows, rows with a 4-week lag, spikes and
+diff --git a/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt b/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt
+index eee4594..341183d 100644
+--- a/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt
++++ b/src/main/kotlin/com/radeshgovind/cli/Optimisation.kt
+@@ -8,6 +8,9 @@ enum class Optimisation {
+ 
+     // H2: O1's bucket statistics by a groupBy broadcast back onto the trips, instead of a window over every trip.
+     OPT2,
++
++    // H5: O3's zero-filled grid computed once (cached for O3's write) for both self-join sides, not once per side.
++    OPT3,
+     ;
+ 
+     val id: String get() = name.lowercase()
+diff --git a/src/main/kotlin/com/radeshgovind/forecast/DemandForecast.kt b/src/main/kotlin/com/radeshgovind/forecast/DemandForecast.kt
+index 9ef425b..3378071 100644
+--- a/src/main/kotlin/com/radeshgovind/forecast/DemandForecast.kt
++++ b/src/main/kotlin/com/radeshgovind/forecast/DemandForecast.kt
+@@ -16,18 +16,20 @@ import org.apache.spark.sql.Dataset
+ import org.apache.spark.sql.Row
+ import org.apache.spark.sql.functions.col
+ 
+-// O3's output: one row per zone and hour of the grid (D23), from the cleaned trips.
+-// The grid and the zones come in as parameters, so the grid's size and any later join hint stay visible in Pipeline.kt.
+-// `hourly` feeds both sides of the 4-week self-join (D27). Nothing is cached: that's the baseline.
+-// No orderBy: it would add a sort and a shuffle for nothing.
+-fun Dataset<Row>.demandForecast(grid: Dataset<Row>, zones: Dataset<Row>): Dataset<Row> {
+-    val hourly = grid.withHourlyCounts(hourlyTripCounts())
+-    return hourly.withBucketStats()
+-        .withFourWeekLag(hourly)
+-        .withDemandIndex()
+-        .withServiceZone(zones)
+-        .select(*outputColumns())
+-}
++// O3's output: one row per zone and hour of the grid (D23), from the cleaned trips, in two steps. The first gives
++// `hourly`, the zero-filled grid that both sides of the 4-week self-join read (D27). Pipeline.kt holds it between the
++// steps, so the grid's size, any join hint and the grid's cache (OPT-3, H5) stay visible there.
++
++// Step 1, on the cleaned trips: c(zone, hour) on every zone × hour of the grid, 0 for an hour without trips (D25).
++fun Dataset<Row>.zeroFilledHourlyCounts(grid: Dataset<Row>): Dataset<Row> = grid.withHourlyCounts(hourlyTripCounts())
++
++// Step 2, on `hourly` (step 1's result), which is read twice: by the bucket statistics (the current side) and by the
++// lag side of the self-join. No orderBy: it would add a sort and a shuffle for nothing.
++fun Dataset<Row>.demandForecast(zones: Dataset<Row>): Dataset<Row> = withBucketStats()
++    .withFourWeekLag(this)
++    .withDemandIndex()
++    .withServiceZone(zones)
++    .select(*outputColumns())
+ 
+ // Fixes the column order and drops hour_index and the join's LocationID.
+ private fun outputColumns(): Array<Column> = OUTPUT_COLUMNS.map(::col).toTypedArray()
+diff --git a/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt b/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt
+index 3622b73..fa2a5f6 100644
+--- a/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt
++++ b/src/test/kotlin/com/radeshgovind/cli/ParseArgsTest.kt
+@@ -50,7 +50,7 @@ class ParseArgsTest {
+     fun `applies every optimisation by default and records none skipped`() {
+         val args = parsed()
+         assertEquals(emptySet(), args.skippedOptimisations)
+-        assertTrue(args.isApplied(Optimisation.OPT2))
++        Optimisation.entries.forEach { assertTrue(args.isApplied(it), "for $it") }
+         assertEquals("", args.asRecord()["skip_opts"])
+     }
+ 
+@@ -60,14 +60,26 @@ class ParseArgsTest {
+             val args = parsed("--skip-opts", it)
+             assertEquals(setOf(Optimisation.OPT2), args.skippedOptimisations, "for --skip-opts $it")
+             assertFalse(args.isApplied(Optimisation.OPT2), "for --skip-opts $it")
++            assertTrue(args.isApplied(Optimisation.OPT3), "for --skip-opts $it")
+             assertEquals("opt2", args.asRecord()["skip_opts"], "for --skip-opts $it")
+         }
+     }
+ 
++    @Test
++    fun `skips several optimisations and records them in enum order`() {
++        listOf("opt2,opt3", "OPT3, opt2", "opt3,opt2,opt3").forEach {
++            val args = parsed("--skip-opts", it)
++            assertEquals(setOf(Optimisation.OPT2, Optimisation.OPT3), args.skippedOptimisations, "for --skip-opts $it")
++            assertFalse(args.isApplied(Optimisation.OPT3), "for --skip-opts $it")
++            assertEquals("opt2,opt3", args.asRecord()["skip_opts"], "for --skip-opts $it")
++        }
++        assertEquals("opt3", parsed("--skip-opts", "opt3").asRecord()["skip_opts"])
++    }
++
+     // opt1 was measured and reverted (LOG → OPT-1), so its id is gone.
+     @Test
+     fun `rejects unknown optimisation ids and an empty or missing list`() {
+-        listOf("opt1", "opt9", "h1", "2", "opt2,opt1", "opt2,,opt2", "opt2,").forEach {
++        listOf("opt1", "opt4", "opt9", "h1", "2", "opt2,opt1", "opt3,opt4", "opt2,,opt3", "opt3,").forEach {
+             assertContains(reasonWithRequired("--skip-opts", it), "--skip-opts", message = "for --skip-opts $it")
+         }
+         assertContains(reasonWithRequired("--skip-opts", ""), "needs a value")
+diff --git a/src/test/kotlin/com/radeshgovind/forecast/DemandForecastTest.kt b/src/test/kotlin/com/radeshgovind/forecast/DemandForecastTest.kt
+index c708dc4..b049245 100644
+--- a/src/test/kotlin/com/radeshgovind/forecast/DemandForecastTest.kt
++++ b/src/test/kotlin/com/radeshgovind/forecast/DemandForecastTest.kt
+@@ -29,7 +29,7 @@ private typealias HourKey = Triple<Int, LocalDate, Int>
+ class DemandForecastTest {
+     @Test
+     fun `demandForecast has the O3 schema`() {
+-        val forecast = fixture(TRIPS).demandForecast(janFebGrid(), zones())
++        val forecast = fixture(TRIPS).zeroFilledHourlyCounts(janFebGrid()).demandForecast(zones())
+         assertEquals(EXPECTED_SCHEMA, forecast.schema().fields().map { it.name() to it.dataType() })
+     }
+ 
+@@ -173,7 +173,7 @@ class DemandForecastTest {
+         }
+ 
+         private fun forecastHours(trips: Dataset<Row>, grid: Dataset<Row>): Map<HourKey, Hour> =
+-            trips.demandForecast(grid, zones()).collectAsList().associate(::keyAndHour)
++            trips.zeroFilledHourlyCounts(grid).demandForecast(zones()).collectAsList().associate(::keyAndHour)
+ 
+         // The JVM's default zone converts the DATE to java.sql.Date and back, so the date is unchanged.
+         private fun keyAndHour(row: Row): Pair<HourKey, Hour> = Triple(
+diff --git a/src/test/kotlin/com/radeshgovind/forecast/CachedHourlyGridTest.kt b/src/test/kotlin/com/radeshgovind/forecast/CachedHourlyGridTest.kt
+new file mode 100644
+index 0000000..1c47684
+--- /dev/null
++++ b/src/test/kotlin/com/radeshgovind/forecast/CachedHourlyGridTest.kt
+@@ -0,0 +1,112 @@
++package com.radeshgovind.forecast
++
++import com.radeshgovind.cli.MonthRange
++import com.radeshgovind.ingest.ENFORCED_SCHEMA
++import com.radeshgovind.localTestSession
++import org.apache.spark.sql.Dataset
++import org.apache.spark.sql.Row
++import org.apache.spark.sql.RowFactory
++import org.apache.spark.sql.SparkSession
++import org.apache.spark.sql.types.StructType
++import org.apache.spark.storage.StorageLevel
++import org.junit.jupiter.api.AfterAll
++import org.junit.jupiter.api.BeforeAll
++import java.time.LocalDateTime
++import java.time.YearMonth
++import kotlin.test.Test
++import kotlin.test.assertEquals
++
++// OPT-3 (H5): Pipeline.kt caches `hourly`, the zero-filled grid, for O3's write. What that relies on: both sides of
++// the 4-week self-join read the cache, and the forecast is the same as without it.
++class CachedHourlyGridTest {
++    @Test
++    fun `both self-join sides read the cached grid`() {
++        withCachedHourly { assertEquals(2, cacheReadsIn(it.demandForecast(zones()))) }
++    }
++
++    @Test
++    fun `the cached grid gives the same forecast`() {
++        val recomputed = forecastRows(hourly())
++        withCachedHourly { assertSameRows(recomputed, forecastRows(it)) }
++    }
++
++    private fun withCachedHourly(check: (Dataset<Row>) -> Unit) {
++        val hourly = hourly().persist(StorageLevel.MEMORY_AND_DISK())
++        try {
++            check(hourly)
++        } finally {
++            hourly.unpersist(true)
++        }
++    }
++
++    private fun cacheReadsIn(forecast: Dataset<Row>): Int =
++        Regex("InMemoryRelation").findAll(forecast.queryExecution().withCachedData().toString()).count()
++
++    // Keyed on (zone, date, hour of day).
++    private fun forecastRows(hourly: Dataset<Row>): Map<List<Any?>, Row> =
++        hourly.demandForecast(zones()).collectAsList().associateBy { listOf(it.get(0), it.get(2), it.get(4)) }
++
++    private fun assertSameRows(expected: Map<List<Any?>, Row>, actual: Map<List<Any?>, Row>) {
++        assertEquals(expected.keys, actual.keys)
++        expected.forEach { (key, row) -> assertSameRow(row, actual.getValue(key)) }
++    }
++
++    private fun assertSameRow(expected: Row, actual: Row) = (0 until expected.size()).forEach {
++        assertSameValue(expected.get(it), actual.get(it))
++    }
++
++    // The window's summation order may change with the plan, so doubles get a tolerance; the rest must be exact.
++    private fun assertSameValue(expected: Any?, actual: Any?) = when (expected) {
++        is Double -> assertEquals(expected, actual as Double, TOLERANCE)
++        else -> assertEquals(expected, actual)
++    }
++
++    companion object {
++        private lateinit var spark: SparkSession
++
++        @JvmStatic
++        @BeforeAll
++        fun startSpark() {
++            spark = localTestSession()
++        }
++
++        @JvmStatic
++        @AfterAll
++        fun stopSpark() {
++            spark.stop()
++        }
++
++        private fun hourly(): Dataset<Row> = spark.createDataFrame(TRIPS.map(::tripRow), ENFORCED_SCHEMA)
++            .zeroFilledHourlyCounts(spark.zoneHourGrid(JAN_TO_FEB, 1..2))
++
++        private fun zones(): Dataset<Row> = spark.createDataFrame(ZONES, ZONE_SCHEMA)
++
++        // Positional, in ENFORCED_SCHEMA order. Only the pickup zone and time matter to O3.
++        private fun tripRow(trip: Pair<Int, LocalDateTime>): Row = RowFactory.create(
++            trip.second, trip.second.plusMinutes(15), trip.first, 200, 1, 1, 1,
++            2.0, 10.0, 2.0, 12.0, trip.second.year, trip.second.monthValue,
++        )
++
++        private const val TOLERANCE = 1e-12
++
++        private val JAN_TO_FEB = MonthRange(YearMonth.of(2025, 1), YearMonth.of(2025, 2))
++
++        private val ZONE_SCHEMA: StructType =
++            StructType.fromDDL("LocationID INT, Borough STRING, Zone STRING, service_zone STRING")
++
++        private val ZONES: List<Row> = listOf(
++            RowFactory.create(1, "EWR", "Newark Airport", "EWR"),
++            RowFactory.create(2, "Queens", "Jamaica Bay", "Boro Zone"),
++        )
++
++        // Zone 1 on 2025-01-06 08:00 and 4 weeks later (a lag of 1); zone 2 twice on 2025-01-15 10:00; zone 1 on
++        // 2025-02-20 18:00, whose lag hour is empty (0).
++        private val TRIPS: List<Pair<Int, LocalDateTime>> = listOf(
++            1 to LocalDateTime.of(2025, 1, 6, 8, 10),
++            1 to LocalDateTime.of(2025, 2, 3, 8, 20),
++            2 to LocalDateTime.of(2025, 1, 15, 10, 5),
++            2 to LocalDateTime.of(2025, 1, 15, 10, 45),
++            1 to LocalDateTime.of(2025, 2, 20, 18, 0),
++        )
++    }
++}
