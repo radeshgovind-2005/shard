@@ -1,0 +1,20 @@
+== docker-20261106-62 label=w5 workers=5 frac=1.0 2026-11-06T12:26:36Z
+alive workers/cores: 5 10
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	58%; discharging; 1:14 remaining present: true
+12:26  up 10 days, 23:25, 1 user, load averages: 9.12 6.74 5.13
+== docker-20261106-63 label=w5 workers=5 frac=1.0 2026-11-06T12:27:14Z
+alive workers/cores: 5 10
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	57%; discharging; 1:07 remaining present: true
+12:27  up 10 days, 23:25, 1 user, load averages: 9.09 7.04 5.32
+== docker-20261106-64 label=w5 workers=5 frac=1.0 2026-11-06T12:27:52Z
+alive workers/cores: 5 10
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	56%; discharging; 1:01 remaining present: true
+12:27  up 10 days, 23:26, 1 user, load averages: 8.78 7.19 5.44
+== docker-20261106-65 label=w5 workers=5 frac=1.0 2026-11-06T12:28:30Z
+alive workers/cores: 5 10
+ lowpowermode         0
+ -InternalBattery-0 (id=22478947)	55%; discharging; 0:55 remaining present: true
+12:28  up 10 days, 23:27, 1 user, load averages: 10.20 7.76 5.73

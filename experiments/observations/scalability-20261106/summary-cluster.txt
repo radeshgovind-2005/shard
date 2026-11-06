@@ -1,0 +1,89 @@
+# python3 experiments/observations/scalability-20261106/scripts/scal.py experiments/runs experiments/observations/scalability-20261106/bench/elapsed.tsv w2=... w3=... w4=... w5=... (ids below)
+
+### w2 (cores 4; n = 4: 67, 68, 69, 75)
+  fraction ['1.0'], sha ['3cc3a25']
+  total wall s        29.52 [28.78-29.84] (3.6%)   per run: 29.72, 29.33, 29.84, 28.78
+  spark-submit s      34.06 [33.39-34.45] (3.1%)
+  outside blocks s    4.57 [4.43-4.73] (6.6%)  (start-up, read-backs, shutdown)
+    m1: wall 5.56 [5.31-5.68] (6.7%)  stage-dur sum 4.94  tasks [11] stages [2]  shufW 0.0 MiB  spill 0.0 MiB  exec run 15.9 s  util 0.72
+    m2: wall 4.08 [4.03-4.24] (5.1%)  stage-dur sum 3.85  tasks [12] stages [3]  shufW 0.6 MiB  spill 0.0 MiB  exec run 12.0 s  util 0.74
+    m3: wall 6.82 [6.70-6.99] (4.2%)  stage-dur sum 6.62  tasks [16] stages [7]  shufW 1.0 MiB  spill 0.0 MiB  exec run 19.9 s  util 0.73
+    o1: wall 5.10 [4.77-5.30] (10.4%)  stage-dur sum 4.93  tasks [24] stages [5]  shufW 2.7 MiB  spill 0.0 MiB  exec run 16.1 s  util 0.79
+    o3: wall 7.87 [7.75-8.03] (3.6%)  stage-dur sum 11.53  tasks [36] stages [8]  shufW 149.6 MiB  spill 0.0 MiB  exec run 18.8 s  util 0.60
+  tasks [99], stages [25]
+  shuffle R / W MiB   187.2 / 153.9
+  spill disk / mem    [0.0] / [0.0] MiB
+  GC %                6.6 [5.5-6.7] (18.8%)
+  executor run s      83.0 [80.7-83.5] (3.4%);  CPU s 71.8 [71.4-72.2] (1.1%);  CPU/run 0.87
+  slot utilisation    0.70 [0.70-0.71] (1.9%)  (= executor run time / (wall x 4 cores))
+  scan stages (op, tasks): m1/10t dur 4.78s skew 1.75 taskmed 1.46s x4; m2/1t dur 0.07s skew 1.00 taskmed 0.07s x4; m2/10t dur 3.62s skew 1.32 taskmed 1.18s x4; m3/1t dur 0.11s skew 1.00 taskmed 0.10s x4; m3/10t dur 5.93s skew 1.15 taskmed 2.00s x4; o1/1t dur 0.03s skew 1.00 taskmed 0.02s x4; o1/10t dur 2.30s skew 1.29 taskmed 0.82s x8; o3/1t dur 0.05s skew 1.00 taskmed 0.04s x4; o3/10t dur 2.67s skew 1.17 taskmed 0.95s x4
+  M1 scan: tasks [10], waves [3], dur 4.78 [4.54-4.87] (6.9%), CPU s 12.5 [12.3-12.6] (2.2%), max/med task 1.75 [1.64-1.81] (9.7%)
+  stage-duration sum s 32.16 [30.90-32.65] (5.4%); in stages with tasks < cores 1.30 [1.28-1.35] (4.8%); in 1-task stages 1.26 [1.24-1.27] (2.6%)
+  #stages with tasks < cores [13]; 1-task [12]
+  max skew (stages w/ median task >= 100 ms) 1.75 [1.64-1.81] (9.7%)
+
+### w3 (cores 6; n = 3: 55, 56, 57)
+  fraction ['1.0'], sha ['3cc3a25']
+  total wall s        29.99 [29.19-30.58] (4.6%)   per run: 29.19, 29.99, 30.58
+  spark-submit s      35.26 [34.34-36.92] (7.3%)
+  outside blocks s    5.27 [5.15-6.34] (22.6%)  (start-up, read-backs, shutdown)
+    m1: wall 5.86 [5.57-6.05] (8.2%)  stage-dur sum 5.23  tasks [11] stages [2]  shufW 0.0 MiB  spill 0.0 MiB  exec run 22.9 s  util 0.64
+    m2: wall 4.05 [3.99-4.18] (4.7%)  stage-dur sum 3.82  tasks [12] stages [3]  shufW 0.6 MiB  spill 0.0 MiB  exec run 16.3 s  util 0.67
+    m3: wall 6.75 [6.31-6.99] (10.1%)  stage-dur sum 6.62  tasks [16] stages [7]  shufW 1.0 MiB  spill 0.0 MiB  exec run 26.8 s  util 0.67
+    o1: wall 5.23 [5.01-5.41] (7.6%)  stage-dur sum 5.18  tasks [24] stages [5]  shufW 2.7 MiB  spill 0.0 MiB  exec run 23.8 s  util 0.75
+    o3: wall 8.32 [7.42-8.62] (14.4%)  stage-dur sum 11.55  tasks [47] stages [8]  shufW 152.2 MiB  spill 0.0 MiB  exec run 23.1 s  util 0.46
+  tasks [110], stages [25]
+  shuffle R / W MiB   189.7 / 156.5
+  spill disk / mem    [0.0] / [0.0] MiB
+  GC %                7.6 [7.4-8.1] (8.4%)
+  executor run s      111.7 [110.7-112.0] (1.1%);  CPU s 90.4 [88.9-90.7] (2.0%);  CPU/run 0.81
+  slot utilisation    0.62 [0.61-0.63] (3.6%)  (= executor run time / (wall x 6 cores))
+  scan stages (op, tasks): m1/10t dur 5.06s skew 1.19 taskmed 2.78s x3; m2/1t dur 0.09s skew 1.00 taskmed 0.09s x3; m2/10t dur 3.50s skew 1.07 taskmed 1.89s x3; m3/1t dur 0.18s skew 1.00 taskmed 0.18s x3; m3/10t dur 5.71s skew 1.08 taskmed 2.82s x3; o1/1t dur 0.07s skew 1.00 taskmed 0.07s x3; o1/10t dur 2.38s skew 1.22 taskmed 1.24s x6; o3/1t dur 0.08s skew 1.00 taskmed 0.07s x3; o3/10t dur 2.58s skew 1.15 taskmed 1.26s x3
+  M1 scan: tasks [10], waves [2], dur 5.06 [4.74-5.17] (8.5%), CPU s 16.6 [15.4-16.8] (8.2%), max/med task 1.19 [1.11-1.19] (6.7%)
+  stage-duration sum s 32.11 [31.91-33.85] (6.1%); in stages with tasks < cores 1.70 [1.66-2.88] (72.1%); in 1-task stages 1.61 [1.60-2.81] (75.5%)
+  #stages with tasks < cores [13]; 1-task [12]
+  max skew (stages w/ median task >= 100 ms) 2.16 [1.67-2.36] (31.9%)
+
+### w4 (cores 8; n = 6: 59, 60, 61, 71, 72, 73)
+  fraction ['1.0'], sha ['3cc3a25']
+  total wall s        26.95 [26.03-29.66] (13.5%)   per run: 26.68, 27.21, 29.66, 28.99, 26.03, 26.23
+  spark-submit s      32.88 [31.92-35.79] (11.8%)
+  outside blocks s    6.01 [5.64-6.80] (19.3%)  (start-up, read-backs, shutdown)
+    m1: wall 5.62 [5.34-6.81] (26.2%)  stage-dur sum 4.98  tasks [13] stages [2]  shufW 0.0 MiB  spill 0.0 MiB  exec run 32.0 s  util 0.71
+    m2: wall 4.04 [3.84-4.26] (10.4%)  stage-dur sum 3.77  tasks [14] stages [3]  shufW 0.7 MiB  spill 0.0 MiB  exec run 22.8 s  util 0.71
+    m3: wall 6.02 [5.54-6.68] (18.9%)  stage-dur sum 5.86  tasks [18] stages [7]  shufW 1.0 MiB  spill 0.0 MiB  exec run 34.2 s  util 0.71
+    o1: wall 4.66 [4.56-4.92] (7.7%)  stage-dur sum 4.56  tasks [29] stages [5]  shufW 3.3 MiB  spill 0.0 MiB  exec run 30.2 s  util 0.80
+    o3: wall 6.75 [6.41-7.57] (17.2%)  stage-dur sum 9.75  tasks [62] stages [8]  shufW 154.4 MiB  spill 0.0 MiB  exec run 35.2 s  util 0.61
+  tasks [136], stages [25]
+  shuffle R / W MiB   192.6 / 159.4
+  spill disk / mem    [0.0] / [0.0] MiB
+  GC %                7.6 [7.4-7.9] (7.3%)
+  executor run s      151.6 [146.0-168.2] (14.7%);  CPU s 108.6 [106.0-118.7] (11.7%);  CPU/run 0.71
+  slot utilisation    0.70 [0.69-0.73] (4.7%)  (= executor run time / (wall x 8 cores))
+  scan stages (op, tasks): m1/12t dur 4.80s skew 1.12 taskmed 3.59s x6; m2/1t dur 0.09s skew 1.00 taskmed 0.08s x6; m2/12t dur 3.41s skew 1.08 taskmed 2.41s x6; m3/1t dur 0.19s skew 1.00 taskmed 0.18s x6; m3/12t dur 5.03s skew 1.11 taskmed 3.29s x6; o1/1t dur 0.14s skew 1.00 taskmed 0.13s x6; o1/12t dur 2.19s skew 1.16 taskmed 1.48s x12; o3/1t dur 0.08s skew 1.00 taskmed 0.08s x6; o3/12t dur 2.36s skew 1.12 taskmed 1.47s x6
+  M1 scan: tasks [12], waves [2], dur 4.80 [4.57-5.88] (27.3%), CPU s 19.9 [18.5-25.0] (32.9%), max/med task 1.12 [1.09-1.15] (5.4%)
+  stage-duration sum s 28.70 [27.83-32.59] (16.6%); in stages with tasks < cores 1.75 [1.61-2.00] (22.4%); in 1-task stages 1.66 [1.53-1.92] (23.7%)
+  #stages with tasks < cores [13]; 1-task [12]
+  max skew (stages w/ median task >= 100 ms) 1.63 [1.45-2.23] (47.9%)
+
+### w5 (cores 10; n = 3: 63, 64, 65)
+  fraction ['1.0'], sha ['3cc3a25']
+  total wall s        31.55 [31.13-32.63] (4.8%)   per run: 31.13, 31.55, 32.63
+  spark-submit s      38.31 [37.59-39.63] (5.3%)
+  outside blocks s    6.76 [6.46-7.00] (8.0%)  (start-up, read-backs, shutdown)
+    m1: wall 6.57 [5.95-6.98] (15.7%)  stage-dur sum 5.88  tasks [13] stages [2]  shufW 0.0 MiB  spill 0.0 MiB  exec run 46.7 s  util 0.70
+    m2: wall 4.96 [4.13-4.97] (16.9%)  stage-dur sum 4.51  tasks [14] stages [3]  shufW 0.7 MiB  spill 0.0 MiB  exec run 33.4 s  util 0.70
+    m3: wall 6.76 [6.61-6.93] (4.7%)  stage-dur sum 6.73  tasks [18] stages [7]  shufW 1.0 MiB  spill 0.0 MiB  exec run 47.5 s  util 0.70
+    o1: wall 6.13 [5.23-6.25] (16.6%)  stage-dur sum 6.16  tasks [29] stages [5]  shufW 3.3 MiB  spill 0.0 MiB  exec run 48.0 s  util 0.79
+    o3: wall 8.04 [7.20-8.60] (17.4%)  stage-dur sum 11.88  tasks [76] stages [8]  shufW 156.5 MiB  spill 0.0 MiB  exec run 51.3 s  util 0.65
+  tasks [150], stages [25]
+  shuffle R / W MiB   194.4 / 161.4
+  spill disk / mem    [0.0] / [0.0] MiB
+  GC %                7.7 [7.1-7.8] (9.1%)
+  executor run s      227.4 [219.8-228.1] (3.7%);  CPU s 128.6 [128.6-132.8] (3.3%);  CPU/run 0.58
+  slot utilisation    0.71 [0.70-0.72] (3.7%)  (= executor run time / (wall x 10 cores))
+  scan stages (op, tasks): m1/12t dur 5.70s skew 1.07 taskmed 4.95s x3; m2/1t dur 0.10s skew 1.00 taskmed 0.09s x3; m2/12t dur 4.13s skew 1.09 taskmed 3.14s x3; m3/1t dur 0.24s skew 1.00 taskmed 0.23s x3; m3/12t dur 5.60s skew 1.07 taskmed 4.44s x3; o1/1t dur 0.15s skew 1.00 taskmed 0.15s x3; o1/12t dur 2.52s skew 1.10 taskmed 2.03s x6; o3/1t dur 0.12s skew 1.00 taskmed 0.10s x3; o3/12t dur 3.21s skew 1.13 taskmed 2.16s x3
+  M1 scan: tasks [12], waves [2], dur 5.70 [5.14-5.94] (14.0%), CPU s 24.0 [21.1-24.5] (14.0%), max/med task 1.07 [1.05-1.07] (1.9%)
+  stage-duration sum s 34.00 [33.69-35.20] (4.4%); in stages with tasks < cores 2.42 [1.68-2.56] (36.3%); in 1-task stages 2.32 [1.58-2.45] (37.6%)
+  #stages with tasks < cores [13]; 1-task [12]
+  max skew (stages w/ median task >= 100 ms) 1.44 [1.36-1.58] (15.3%)

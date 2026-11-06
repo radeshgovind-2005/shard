@@ -1,0 +1,56 @@
+docker-20261106-37	scale study: warm-up at fraction 1.0	**warm-up, discarded**. Scale study, fresh 2-worker cluster.
+docker-20261106-38	scale study: `--fraction 0.1`	Scale round 1 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-39	scale study: `--fraction 0.2`	Scale round 1 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-40	scale study: `--fraction 0.5`	Scale round 1 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-41	scale study: `--fraction 1.0`	Scale round 1 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Also in the 2-worker T₂ sensitivity pool.
+docker-20261106-42	scale study: `--fraction 0.1`	Scale round 2 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-43	scale study: `--fraction 0.2`	Scale round 2 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-44	scale study: `--fraction 0.5`	Scale round 2 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-45	scale study: `--fraction 1.0`	Scale round 2 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Also in the 2-worker T₂ sensitivity pool.
+docker-20261106-46	scale study: `--fraction 0.1`	Scale round 3 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-47	scale study: `--fraction 0.2`	Scale round 3 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-48	scale study: `--fraction 0.5`	Scale round 3 (interleaved 0.1 → 0.2 → 0.5 → 1.0).
+docker-20261106-49	scale study: `--fraction 1.0`	Scale round 3 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Also in the 2-worker T₂ sensitivity pool.
+docker-20261106-50	scale study: `--fraction 0.1`	Scale round 4 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 4 added: 0.2 spread was 10.0 % after 3 rounds.
+docker-20261106-51	scale study: `--fraction 0.2`	Scale round 4 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 4 added: 0.2 spread was 10.0 % after 3 rounds.
+docker-20261106-52	scale study: `--fraction 0.5`	Scale round 4 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 4 added: 0.2 spread was 10.0 % after 3 rounds.
+docker-20261106-53	scale study: `--fraction 1.0`	Scale round 4 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 4 added: 0.2 spread was 10.0 % after 3 rounds. Also in the 2-worker T₂ sensitivity pool.
+docker-20261106-76	scale study: `--fraction 0.1`	Scale round 5 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 5 added: 0.2 spread 11.5 % after 4 rounds.
+docker-20261106-77	scale study: `--fraction 0.2`	Scale round 5 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 5 added: 0.2 spread 11.5 % after 4 rounds.
+docker-20261106-78	scale study: `--fraction 0.5`	Scale round 5 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 5 added: 0.2 spread 11.5 % after 4 rounds.
+docker-20261106-79	scale study: `--fraction 1.0`	Scale round 5 (interleaved 0.1 → 0.2 → 0.5 → 1.0). Round 5 added: 0.2 spread 11.5 % after 4 rounds. Also in the 2-worker T₂ sensitivity pool.
+docker-20261106-54	cluster size: 3 workers	**warm-up, discarded**. Fresh `down` / `up --scale spark-worker=3`, 3 workers ALIVE.
+docker-20261106-55	cluster size: 3 workers	Cluster block, 3 workers.
+docker-20261106-56	cluster size: 3 workers	Cluster block, 3 workers.
+docker-20261106-57	cluster size: 3 workers	Cluster block, 3 workers.
+docker-20261106-58	cluster size: 4 workers	**warm-up, discarded**. Fresh `down` / `up --scale spark-worker=4`, 4 workers ALIVE.
+docker-20261106-59	cluster size: 4 workers	Cluster block, 4 workers.
+docker-20261106-60	cluster size: 4 workers	Cluster block, 4 workers.
+docker-20261106-61	cluster size: 4 workers	Cluster block, 4 workers.
+docker-20261106-62	cluster size: 5 workers	**warm-up, discarded**. Fresh `down` / `up --scale spark-worker=5`, 5 workers ALIVE.
+docker-20261106-63	cluster size: 5 workers	Cluster block, 5 workers.
+docker-20261106-64	cluster size: 5 workers	Cluster block, 5 workers.
+docker-20261106-65	cluster size: 5 workers	Cluster block, 5 workers.
+docker-20261106-66	cluster size: 2 workers	**warm-up, discarded**. Fresh `down` / `up --scale spark-worker=2`, 2 workers ALIVE. Return to 2 workers after the sweep (drift check, T₂).
+docker-20261106-67	cluster size: 2 workers	Cluster block, 2 workers. Return to 2 workers after the sweep (drift check, T₂).
+docker-20261106-68	cluster size: 2 workers	Cluster block, 2 workers. Return to 2 workers after the sweep (drift check, T₂).
+docker-20261106-69	cluster size: 2 workers	Cluster block, 2 workers. Return to 2 workers after the sweep (drift check, T₂).
+docker-20261106-70	cluster size: 4 workers	**warm-up, discarded**. Fresh `down` / `up --scale spark-worker=4`, 4 workers ALIVE. Second 4-worker block: spread was 11.0 % after 59–61.
+docker-20261106-71	cluster size: 4 workers	Cluster block, 4 workers. Second 4-worker block: spread was 11.0 % after 59–61.
+docker-20261106-72	cluster size: 4 workers	Cluster block, 4 workers. Second 4-worker block: spread was 11.0 % after 59–61.
+docker-20261106-73	cluster size: 4 workers	Cluster block, 4 workers. Second 4-worker block: spread was 11.0 % after 59–61.
+docker-20261106-74	cluster size: 2 workers	**warm-up, discarded**. Fresh `down` / `up --scale spark-worker=2`, 2 workers ALIVE. Restore step: `cluster.sh 2 74 0` was meant to run nothing, but BSD `seq 1 0` yields two values, so it ran 74 and 75; valid runs on a fresh cluster, 75 kept in T₂.
+docker-20261106-75	cluster size: 2 workers	Cluster block, 2 workers. Restore step: `cluster.sh 2 74 0` was meant to run nothing, but BSD `seq 1 0` yields two values, so it ran 74 and 75; valid runs on a fresh cluster, 75 kept in T₂.
+local-20261106-27	local[n] supplement: `local[*]`	**warm-up, discarded**. `JAVA_TOOL_OPTIONS=-Dspark.master=…` with `make run`; Docker cluster idle at 2 workers.
+local-20261106-28	local[n] supplement: `local[2]`	Local round 1 (interleaved 2 → 4 → 8 → *).
+local-20261106-29	local[n] supplement: `local[4]`	Local round 1 (interleaved 2 → 4 → 8 → *).
+local-20261106-30	local[n] supplement: `local[8]`	Local round 1 (interleaved 2 → 4 → 8 → *).
+local-20261106-31	local[n] supplement: `local[*]`	Local round 1 (interleaved 2 → 4 → 8 → *).
+local-20261106-32	local[n] supplement: `local[2]`	Local round 2 (interleaved 2 → 4 → 8 → *).
+local-20261106-33	local[n] supplement: `local[4]`	Local round 2 (interleaved 2 → 4 → 8 → *).
+local-20261106-34	local[n] supplement: `local[8]`	Local round 2 (interleaved 2 → 4 → 8 → *).
+local-20261106-35	local[n] supplement: `local[*]`	Local round 2 (interleaved 2 → 4 → 8 → *).
+local-20261106-36	local[n] supplement: `local[2]`	Local round 3 (interleaved 2 → 4 → 8 → *).
+local-20261106-37	local[n] supplement: `local[4]`	Local round 3 (interleaved 2 → 4 → 8 → *).
+local-20261106-38	local[n] supplement: `local[8]`	Local round 3 (interleaved 2 → 4 → 8 → *).
+local-20261106-39	local[n] supplement: `local[*]`	Local round 3 (interleaved 2 → 4 → 8 → *).
