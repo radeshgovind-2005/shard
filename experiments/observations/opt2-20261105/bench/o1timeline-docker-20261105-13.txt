@@ -1,0 +1,6 @@
+# zstd -dc experiments/runs/docker-20261105-13/eventlog/*/events_* | python3 -I experiments/observations/opt2-20261105/bench/scripts/o1timeline.py
+stage  submit_s  complete_s  dur_s  tasks  input_records  shuffle_write_B  overlaps_prev
+   40      0.00        0.03   0.03      1            265                0  
+   41      0.00        3.82   3.81     10     48,722,602      522,950,622  yes
+   43      3.85        9.21   5.36      9              0           46,359  no
+   46      9.24        9.29   0.05      1              0                0  no

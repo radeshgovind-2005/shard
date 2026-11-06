@@ -1,0 +1,47 @@
+# per final plan (between '== Final Plan ==' and '== Initial Plan =='), from plans/<side>/o1.txt; command:
+#   awk '/== Final Plan ==/{f=1} /== Initial Plan ==/{f=0} f' <plan> | grep -c '<pattern>'
+# patterns: 'FileScan parquet', 'Exchange hashpartitioning', '+- Window [', 'Sort [', 'HashAggregate(' (all; 'partial'
+#   = those with partial_ functions), 'BroadcastExchange', 'BroadcastHashJoin', 'SortMergeJoin', 'AQEShuffleRead'
+side                         FileScan  ExchHash Window Sort HashAgg partial BcastEx  BHJ  SMJ AQERead
+off-2025-01-local-20261105-83        1         2      1    1       2       1       1    1    0       2
+off-2025-local-20261105-85          1         2      1    1       2       1       1    1    0       2
+on-2025-01-local-20261105-84        2         2      0    0       4       2       2    2    0       2
+on-2025-local-20261105-86           2         2      0    0       4       2       2    2    0       2
+
+# the hash exchanges in each final plan, with the node that feeds them
+## off-2025-01-local-20261105-83
+Exchange hashpartitioning(day_type#64, payment_type#32, pickup_borough#62, 200), ENSURE_REQUIREMENTS, [plan_id=260]
+*(4) HashAggregate(keys=[day_type#64, payment_type#32, pickup_borough#62], functions=[partial_count(1), partial_count(CASE WHEN is_fare_anomaly#61 THEN 1 END)],
+
+Exchange hashpartitioning(PULocationID#7, hour_of_day#44, 200), ENSURE_REQUIREMENTS, [plan_id=108]
+*(1) Project [PULocationID#7, cast(payment_type#9L as int) AS payment_type#32, dayofweek(cast(tpep_pickup_datetime#1 as date)) AS day_of_week#43, hour(tpep_pick
+## off-2025-local-20261105-85
+Exchange hashpartitioning(day_type#64, payment_type#32, pickup_borough#62, 200), ENSURE_REQUIREMENTS, [plan_id=260]
+*(4) HashAggregate(keys=[day_type#64, payment_type#32, pickup_borough#62], functions=[partial_count(1), partial_count(CASE WHEN is_fare_anomaly#61 THEN 1 END)],
+
+Exchange hashpartitioning(PULocationID#7, hour_of_day#44, 200), ENSURE_REQUIREMENTS, [plan_id=108]
+*(1) Project [PULocationID#7, cast(payment_type#9L as int) AS payment_type#32, dayofweek(cast(tpep_pickup_datetime#1 as date)) AS day_of_week#43, hour(tpep_pick
+## on-2025-01-local-20261105-84
+Exchange hashpartitioning(day_type#148, payment_type#32, pickup_borough#146, 200), ENSURE_REQUIREMENTS, [plan_id=421]
+*(4) HashAggregate(keys=[day_type#148, payment_type#32, pickup_borough#146], functions=[partial_count(1), partial_count(CASE WHEN is_fare_anomaly#145 THEN 1 END
+
+Exchange hashpartitioning(PULocationID#95, hour_of_day#125, 200), ENSURE_REQUIREMENTS, [plan_id=139]
+*(1) HashAggregate(keys=[PULocationID#95, hour_of_day#125], functions=[partial_avg(fare_per_km#127), partial_stddev(fare_per_km#127)], output=[PULocationID#95, 
+## on-2025-local-20261105-86
+Exchange hashpartitioning(day_type#148, payment_type#32, pickup_borough#146, 200), ENSURE_REQUIREMENTS, [plan_id=421]
+*(4) HashAggregate(keys=[day_type#148, payment_type#32, pickup_borough#146], functions=[partial_count(1), partial_count(CASE WHEN is_fare_anomaly#145 THEN 1 END
+
+Exchange hashpartitioning(PULocationID#95, hour_of_day#125, 200), ENSURE_REQUIREMENTS, [plan_id=139]
+*(1) HashAggregate(keys=[PULocationID#95, hour_of_day#125], functions=[partial_avg(fare_per_km#127), partial_stddev(fare_per_km#127)], output=[PULocationID#95, 
+
+# the joins (BroadcastHashJoin keys), final plans
+## off-2025-01-local-20261105-83
+*(4) BroadcastHashJoin [PULocationID#7], [LocationID#39], Inner, BuildRight, false, false
+## off-2025-local-20261105-85
+*(4) BroadcastHashJoin [PULocationID#7], [LocationID#39], Inner, BuildRight, false, false
+## on-2025-01-local-20261105-84
+*(4) BroadcastHashJoin [PULocationID#7], [LocationID#39], Inner, BuildRight, false, false
+*(4) BroadcastHashJoin [coalesce(PULocationID#7, 0), isnull(PULocationID#7), coalesce(hour_of_day#44, 0), isnull(hour_of_day#44)], [coalesce(bucket_PULocationID#47, 0), isnull(bucket_PULocationID#47), coalesce(bucket_hour_of_day#48, 0), isnull(bucket_hour_of_d
+## on-2025-local-20261105-86
+*(4) BroadcastHashJoin [PULocationID#7], [LocationID#39], Inner, BuildRight, false, false
+*(4) BroadcastHashJoin [coalesce(PULocationID#7, 0), isnull(PULocationID#7), coalesce(hour_of_day#44, 0), isnull(hour_of_day#44)], [coalesce(bucket_PULocationID#47, 0), isnull(bucket_PULocationID#47), coalesce(bucket_hour_of_day#48, 0), isnull(bucket_hour_of_d

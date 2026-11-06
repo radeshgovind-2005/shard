@@ -1,0 +1,8 @@
+# per stage of the o1 block, from /private/tmp/claude-501/opt2-check/local-20261105-83/run.json (runs[0].stages); bytes
+args {'input': 'data', 'output': 'output/opt2-off', 'years': '2025-01..2025-01', 'fraction': '1.0', 'ops': 'o1', 'skip_opts': 'opt2'} git_sha 022fcfa
+o1 total: stages 4 tasks 23 shuffle_write 37,884,150 shuffle_read 37,884,150 disk_spill 0 memory_spill 0
+stage tasks  shuffle_write   shuffle_read   disk_spill   memory_spill  skew
+    1    10     37,837,998              0            0              0  5.89
+    2     1              0              0            0              0   1.0
+    4    11         46,152     37,837,998            0              0  1.02
+    7     1              0         46,152            0              0   1.0

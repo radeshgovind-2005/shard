@@ -1,0 +1,6 @@
+# zstd -dc experiments/runs/local-20261105-24/eventlog/*/events_* | python3 -I experiments/observations/opt2-20261105/bench/scripts/o1timeline.py
+stage  submit_s  complete_s  dur_s  tasks  input_records  shuffle_write_B  overlaps_prev
+   40      0.00        0.01   0.01      1            265                0  
+   41      0.01        3.05   3.04     12     48,722,602      522,952,565  no
+   43      3.07        7.47   4.39     11              0           55,249  no
+   46      7.49        7.54   0.05      1              0                0  no
